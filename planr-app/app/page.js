@@ -95,4 +95,17 @@ export default function Home() {
         })}
       </div>
 
-      {selectedPlaces.length
+      {selectedPlaces.length > 0 && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-white border-2 border-black p-4 rounded-full shadow-2xl flex items-center gap-6 min-w-[320px] justify-between animate-in slide-in-from-bottom-10">
+          <span className="font-black text-sm ml-4">{selectedPlaces.length}/5 Selected</span>
+          <button
+            onClick={handleCreatePoll}
+            className="bg-indigo-600 text-white px-8 py-3 rounded-full font-black uppercase text-sm hover:bg-indigo-700 active:scale-95 transition-all"
+          >
+            Create Poll
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
