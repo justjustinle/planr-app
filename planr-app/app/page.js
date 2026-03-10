@@ -1,59 +1,115 @@
 "use client";
 import { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const [query, setQuery] = useState('');
+  const [city, setCity] = useState('');
   const [results, setResults] = useState([]);
+  const [selectedPlaces, setSelectedPlaces] = useState([]);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  const handleSearch = async () => {
-    if (!query) return;
+  // 1. Search for Restaurants via your API route
+  const searchYelp = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location: query }),
-      });
-      const data = await res.json();
-      // Handle both {businesses: []} and naked []
-      const finalArray = data.businesses || (Array.isArray(data) ? data : []);
-      setResults(finalArray);
+      const response = await fetch(`/api/search?location=${city}`);
+      const data = await response.json();
+      setResults(data.businesses || []);
     } catch (err) {
       console.error("Search failed", err);
-    } finally {
-      setLoading(false);
+    }
+    setLoading(false);
+  };
+
+  // 2. Manage the 5-restaurant limit
+  const togglePlace = (place) => {
+    setSelectedPlaces((prev) => {
+      const isAlreadySelected = prev.find((p) => p.id === place.id);
+      if (isAlreadySelected) {
+        return prev.filter((p) => p.id !== place.id);
+      }
+      if (prev.length < 5) {
+        return [...prev, place];
+      }
+      return prev;
+    });
+  };
+
+  // 3. Save to Supabase and Redirect
+  const handleCreatePoll = async () => {
+    const { data, error } = await supabase
+      .from('polls')
+      .insert([
+        {
+          restaurants: selectedPlaces,
+          location: city,
+          votes: {}
+        }
+      ])
+      .select();
+
+    if (error) {
+      alert("Error creating poll: " + error.message);
+    } else {
+      // Redirect to the new poll page (we will build this next!)
+      router.push(`/poll/${data[0].id}`);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-10 font-sans">
-      <h1 className="text-6xl font-black text-indigo-600 mb-10 italic">PLANR.</h1>
+    <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' }}>
+      <h1>Planr.</h1>
+      <p>Where are we eating in <strong>{city || '...'}</strong>?</p>
 
-      <div className="flex gap-4 mb-12">
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
         <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Where to?"
-          className="flex-1 p-5 border-4 border-black rounded-2xl text-xl font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+          type="text"
+          placeholder="Enter City (e.g. Oslo)"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          style={{ padding: '10px', flex: 1, borderRadius: '8px', border: '1px solid #ccc' }}
         />
-        <button
-          onClick={handleSearch}
-          className="bg-black text-white px-10 rounded-2xl font-black text-xl hover:bg-indigo-600"
-        >
-          {loading ? '...' : 'SEARCH'}
+        <button onClick={searchYelp} style={{ padding: '10px 20px', cursor: 'pointer' }}>
+          {loading ? 'Searching...' : 'Search'}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {results.map((biz) => (
-          <div key={biz.id} className="border-4 border-black p-4 rounded-3xl bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <img src={biz.image_url} className="h-48 w-full object-cover rounded-2xl mb-4" alt="" />
-            <h3 className="font-bold text-2xl">{biz.name}</h3>
-            <p className="font-bold text-indigo-500">{biz.rating} Stars</p>
-          </div>
-        ))}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+        {results.map((place) => {
+          const isSelected = selectedPlaces.find((p) => p.id === place.id);
+          return (
+            <div
+              key={place.id}
+              onClick={() => togglePlace(place)}
+              style={{
+                border: isSelected ? '3px solid #FF5231' : '1px solid #eee',
+                padding: '10px',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                backgroundColor: isSelected ? '#fff5f2' : '#fff'
+              }}
+            >
+              <img src={place.image_url} alt={place.name} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px' }} />
+              <h3 style={{ margin: '10px 0 5px 0', fontSize: '16px' }}>{place.name}</h3>
+              <p style={{ fontSize: '12px', color: '#666' }}>{place.rating} ⭐ ({place.review_count} reviews)</p>
+            </div>
+          );
+        })}
       </div>
+
+      {selectedPlaces.length > 0 && (
+        <div style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#fff', padding: '20px', borderRadius: '50px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <span><strong>{selectedPlaces.length}</strong> selected (max 5)</span>
+          <button
+            onClick={handleCreatePoll}
+            style={{ backgroundColor: '#FF5231', color: 'white', border: 'none', padding: '10px 25px', borderRadius: '25px', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            Create Group Poll
+          </button>
+        </div>
+      )}
     </div>
   );
 }
