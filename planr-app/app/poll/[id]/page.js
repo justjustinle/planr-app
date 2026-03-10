@@ -92,4 +92,37 @@ export default function PollPage({ params }) {
               <button
                 onClick={() => vote(opt.id)}
                 disabled={poll.is_closed}
-                style={{ position: 'absolute', bottom: '25px', right: '25px', width: '80px', height: '60px', borderRadius: '20px', backgroundColor: poll.is_closed ? '#F3F4F6' : (isWinning ? '#6366f1' : '#FFF'), border: 'none', cursor: poll.is_closed ? 'default' : 'pointer', display: 'flex', flexDirection: 'column
+                style={{ position: 'absolute', bottom: '25px', right: '25px', width: '80px', height: '60px', borderRadius: '20px', backgroundColor: poll.is_closed ? '#F3F4F6' : (isWinning ? '#6366f1' : '#FFF'), border: 'none', cursor: poll.is_closed ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 20px rgba(0,0,0,0.2)' }}
+              >
+                <span style={{ fontSize: '9px', fontWeight: '900', color: (isWinning || poll.is_closed) ? '#FFF' : '#6366f1', opacity: isWinning ? 1 : 0.6 }}>VOTES</span>
+                <span style={{ fontSize: '20px', fontWeight: '900', color: (isWinning || poll.is_closed) ? '#FFF' : '#000' }}>{votes}</span>
+              </button>
+
+              {isWinning && !poll.is_closed && (
+                <div style={{ position: 'absolute', top: '20px', left: '20px', backgroundColor: '#FFD700', padding: '5px 12px', borderRadius: '15px', fontSize: '10px', fontWeight: '900' }}>🏆 LEADING</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Admin Toggle */}
+      <div style={{ textAlign: 'center', marginTop: '60px', padding: '0 20px' }}>
+        <button
+          onClick={toggleClose}
+          style={{ background: 'none', border: '2px dashed #DDD', padding: '15px 30px', borderRadius: '20px', color: '#AAA', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' }}
+        >
+          {poll.is_closed ? '🔓 Re-open Poll' : '🔒 End Poll & Reveal Winner'}
+        </button>
+      </div>
+
+      {/* Invite Squad URL */}
+      <div style={{ maxWidth: '400px', margin: '40px auto 0', padding: '20px', borderTop: '1px solid #EEE', textAlign: 'center' }}>
+        <p style={{ fontSize: '10px', fontWeight: '900', color: '#BBB', textTransform: 'uppercase', marginBottom: '10px' }}>Invite the squad</p>
+        <div style={{ backgroundColor: '#F3F4F6', padding: '12px', borderRadius: '15px', fontSize: '10px', color: '#999', wordBreak: 'break-all' }}>
+          {typeof window !== 'undefined' ? window.location.href : ''}
+        </div>
+      </div>
+    </div>
+  );
+}
