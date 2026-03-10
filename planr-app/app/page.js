@@ -10,16 +10,19 @@ const supabase = createClient(
 
 export default function Home() {
   const [city, setCity] = useState('');
+  const [activity, setActivity] = useState('restaurants'); // restaurants, bars, active
+  const [groupSize, setGroupSize] = useState('4');
   const [results, setResults] = useState([]);
   const [selectedPlaces, setSelectedPlaces] = useState([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const searchYelp = async () => {
+  const searchVibe = async () => {
     if (!city) return;
     setLoading(true);
+    // We pass 'activity' to our API to filter Yelp categories
     try {
-      const response = await fetch(`/api/search?location=${city}`);
+      const response = await fetch(`/api/search?location=${city}&term=${activity}`);
       const data = await response.json();
       setResults(data.businesses || []);
     } catch (err) { console.error(err); }
@@ -40,53 +43,86 @@ export default function Home() {
       restaurants: selectedPlaces,
       location: city,
       votes: {},
-      is_closed: false
+      is_closed: false,
+      metadata: { activity, groupSize } // Storing the vibe
     }]).select();
     if (!error) router.push(`/poll/${data[0].id}`);
   };
 
   return (
     <div style={{ backgroundColor: '#FFFDF9', minHeight: '100vh', fontFamily: 'sans-serif', color: '#2D2926', paddingBottom: '120px' }}>
-      {/* Header */}
-      <header style={{ textAlign: 'center', padding: '60px 20px 40px' }}>
-        <h1 style={{ fontSize: '48px', fontWeight: '900', fontStyle: 'italic', color: '#6366f1', letterSpacing: '-2px', margin: 0 }}>PLANR.</h1>
-        <p style={{ color: '#A0A0A0', fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '2px', marginTop: '10px' }}>The Squad Decider</p>
+      <header style={{ textAlign: 'center', padding: '50px 20px 30px' }}>
+        <h1 style={{ fontSize: '42px', fontWeight: '900', fontStyle: 'italic', color: '#6366f1', letterSpacing: '-2px', margin: 0 }}>PLANR.</h1>
       </header>
 
-      {/* Search Bar */}
-      <div style={{ maxWidth: '500px', margin: '0 auto 50px', padding: '0 20px', display: 'flex', gap: '10px' }}>
-        <input
-          style={{ flex: 1, padding: '20px 25px', borderRadius: '40px', border: '2px solid #EEE', fontSize: '16px', fontWeight: 'bold', outline: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.03)' }}
-          placeholder="Where are we eating?"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-        />
-        <button
-          onClick={searchYelp}
-          style={{ backgroundColor: '#000', color: '#FFF', padding: '0 30px', borderRadius: '40px', border: 'none', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}
-        >
-          {loading ? '...' : 'GO'}
-        </button>
+      {/* SQUAD SETUP PANEL */}
+      <div style={{ maxWidth: '500px', margin: '0 auto 30px', padding: '0 20px' }}>
+        <div style={{ backgroundColor: '#FFF', borderRadius: '35px', padding: '25px', boxShadow: '0 15px 40px rgba(0,0,0,0.04)', border: '1px solid #F0F0F0' }}>
+
+          <p style={{ fontSize: '10px', fontWeight: '900', color: '#AAA', textTransform: 'uppercase', marginBottom: '15px' }}>1. The Vibe</p>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
+            {['restaurants', 'cocktailbars', 'active'].map((v) => (
+              <button
+                key={v}
+                onClick={() => setActivity(v)}
+                style={{ flex: 1, padding: '12px', borderRadius: '15px', border: 'none', backgroundColor: activity === v ? '#6366f1' : '#F3F4F6', color: activity === v ? '#FFF' : '#666', fontWeight: 'bold', fontSize: '11px', textTransform: 'capitalize', cursor: 'pointer', transition: '0.2s' }}
+              >
+                {v === 'active' ? 'Activity' : v === 'cocktailbars' ? 'Drinks' : 'Food'}
+              </button>
+            ))}
+          </div>
+
+          <p style={{ fontSize: '10px', fontWeight: '900', color: '#AAA', textTransform: 'uppercase', marginBottom: '15px' }}>2. The Details</p>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+             <input
+                placeholder="City"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                style={{ flex: 2, padding: '15px 20px', borderRadius: '15px', border: '1px solid #EEE', fontWeight: 'bold' }}
+             />
+             <select
+                value={groupSize}
+                onChange={(e) => setGroupSize(e.target.value)}
+                style={{ flex: 1, padding: '15px', borderRadius: '15px', border: '1px solid #EEE', fontWeight: 'bold' }}
+             >
+                {[2,4,6,8,10].map(n => <option key={n} value={n}>{n} People</option>)}
+             </select>
+          </div>
+
+          <button
+            onClick={searchVibe}
+            style={{ width: '100%', backgroundColor: '#000', color: '#FFF', padding: '18px', borderRadius: '20px', border: 'none', fontWeight: '900', cursor: 'pointer' }}
+          >
+            {loading ? 'Searching...' : 'Find Options'}
+          </button>
+        </div>
       </div>
 
-      {/* Results */}
+      {/* RESULTS */}
       <div style={{ maxWidth: '500px', margin: '0 auto', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {results.map((place) => {
           const isSelected = selectedPlaces.find((p) => p.id === place.id);
           return (
-            <div
-              key={place.id}
-              onClick={() => togglePlace(place)}
-              style={{ position: 'relative', height: '350px', borderRadius: '35px', overflow: 'hidden', cursor: 'pointer', border: isSelected ? '5px solid #6366f1' : 'none', transition: '0.3s', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}
-            >
-              <img src={place.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }} />
-              <div style={{ position: 'absolute', bottom: '30px', left: '30px', right: '30px', color: '#FFF' }}>
-                <p style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '5px', opacity: 0.8 }}>{place.location.city}</p>
-                <h3 style={{ fontSize: '24px', fontWeight: '900', margin: 0 }}>{place.name}</h3>
-                <p style={{ fontSize: '14px', marginTop: '5px' }}>{place.rating} ★ • {place.price || '$$'}</p>
+            <div key={place.id} style={{ position: 'relative', borderRadius: '35px', overflow: 'hidden', border: isSelected ? '5px solid #6366f1' : '1px solid #EEE' }}>
+              <div onClick={() => togglePlace(place)} style={{ height: '300px', cursor: 'pointer' }}>
+                <img src={place.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }} />
+                <div style={{ position: 'absolute', bottom: '25px', left: '25px', color: '#FFF' }}>
+                  <h3 style={{ fontSize: '22px', fontWeight: '900', margin: 0 }}>{place.name}</h3>
+                  <p style={{ fontSize: '12px', opacity: 0.8 }}>{place.rating} ★ • {place.price || '$$'}</p>
+                </div>
               </div>
-              <div style={{ position: 'absolute', top: '25px', right: '25px', width: '45px', height: '45px', borderRadius: '50%', backgroundColor: isSelected ? '#6366f1' : 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyCenter: 'center', color: '#FFF', fontWeight: 'bold', fontSize: '20px', display: 'flex', justifyContent: 'center' }}>
+
+              {/* NEW: MENU LINK */}
+              <a
+                href={place.url}
+                target="_blank"
+                style={{ position: 'absolute', top: '20px', left: '20px', backgroundColor: 'rgba(255,255,255,0.9)', padding: '8px 15px', borderRadius: '12px', fontSize: '10px', fontWeight: '900', color: '#000', textDecoration: 'none', backdropFilter: 'blur(5px)' }}
+              >
+                📖 VIEW MENU
+              </a>
+
+              <div style={{ position: 'absolute', top: '20px', right: '20px', width: '40px', height: '40px', borderRadius: '50%', backgroundColor: isSelected ? '#6366f1' : 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 'bold' }}>
                 {isSelected ? '✓' : '+'}
               </div>
             </div>
@@ -94,19 +130,11 @@ export default function Home() {
         })}
       </div>
 
-      {/* Floating Action Bar */}
+      {/* BOTTOM BAR */}
       {selectedPlaces.length > 0 && (
-        <div style={{ position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: '400px', backgroundColor: '#000', padding: '20px 30px', borderRadius: '50px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 30px 60px rgba(0,0,0,0.4)', zIndex: 100 }}>
-          <div style={{ color: '#FFF' }}>
-            <p style={{ margin: 0, fontSize: '22px', fontWeight: '900' }}>{selectedPlaces.length}</p>
-            <p style={{ margin: 0, fontSize: '10px', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>Selected</p>
-          </div>
-          <button
-            onClick={handleCreatePoll}
-            style={{ backgroundColor: '#6366f1', color: '#FFF', border: 'none', padding: '15px 35px', borderRadius: '30px', fontWeight: '900', textTransform: 'uppercase', fontSize: '12px', cursor: 'pointer' }}
-          >
-            Create Poll
-          </button>
+        <div style={{ position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: '400px', backgroundColor: '#000', padding: '20px', borderRadius: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100 }}>
+          <span style={{ color: '#FFF', fontWeight: '900', marginLeft: '10px' }}>{selectedPlaces.length} Picked</span>
+          <button onClick={handleCreatePoll} style={{ backgroundColor: '#6366f1', color: '#FFF', border: 'none', padding: '12px 25px', borderRadius: '20px', fontWeight: '900' }}>CREATE POLL</button>
         </div>
       )}
     </div>
