@@ -1,130 +1,104 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { useRouter } from 'next/navigation';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-export default function Home() {
-  const [city, setCity] = useState('');
-  const [results, setResults] = useState([]);
-  const [selectedPlaces, setSelectedPlaces] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+export default function PollPage({ params }) {
+  const [poll, setPoll] = useState(null);
+  const pollId = params.id;
 
-  const searchYelp = async () => {
-    if (!city) return;
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/search?location=${city}`);
-      const data = await response.json();
-      setResults(data.businesses || []);
-    } catch (err) {
-      console.error("Search failed", err);
+  useEffect(() => {
+    async function getInitialPoll() {
+      const { data } = await supabase.from('polls').select('*').eq('id', pollId).single();
+      if (data) setPoll(data);
     }
-    setLoading(false);
+    getInitialPoll();
+
+    // Live update subscription
+    const channel = supabase.channel(`poll-${pollId}`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'polls', filter: `id=eq.${pollId}` },
+        (payload) => setPoll(payload.new)
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [pollId]);
+
+  const vote = async (optionId) => {
+    // Optimistically update the UI locally first for speed
+    const currentVotes = poll.votes || {};
+    const updatedVotes = { ...currentVotes, [optionId]: (currentVotes[optionId] || 0) + 1 };
+
+    // Push to Supabase
+    await supabase.from('polls').update({ votes: updatedVotes }).eq('id', pollId);
   };
 
-  const togglePlace = (place) => {
-    console.log("Clicked:", place.name); // Check your browser console!
-    setSelectedPlaces((prev) => {
-      const isAlreadySelected = prev.find((p) => p.id === place.id);
-      if (isAlreadySelected) {
-        return prev.filter((p) => p.id !== place.id);
-      }
-      if (prev.length < 5) {
-        return [...prev, place];
-      }
-      return prev;
-    });
-  };
+  if (!poll) return <div className="p-10 text-center font-bold animate-pulse">Loading PLANR Poll...</div>;
 
-  const handleCreatePoll = async () => {
-    if (selectedPlaces.length === 0) return;
-
-    const { data, error } = await supabase
-      .from('polls')
-      .insert([{
-        restaurants: selectedPlaces,
-        location: city,
-        votes: {},
-        is_closed: false
-      }])
-      .select();
-
-    if (error) {
-      alert("Supabase Error: " + error.message);
-    } else {
-      router.push(`/poll/${data[0].id}`);
-    }
-  };
+  // Logic to find the current leader
+  const voteCounts = Object.values(poll.votes || {});
+  const maxVotes = Math.max(...voteCounts, 0);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 min-h-screen bg-white">
-      <header className="py-10">
-        <h1 className="text-6xl font-black italic text-indigo-600 tracking-tighter">PLANR.</h1>
-        <p className="font-bold text-gray-400 uppercase tracking-widest text-xs mt-2">The Group Dinner Decider</p>
+    <div className="max-w-md mx-auto p-6 bg-gray-50 min-h-screen font-sans">
+      <header className="mb-10 text-center">
+        <h1 className="text-5xl font-black italic text-indigo-600 tracking-tighter">PLANR.</h1>
+        <div className="mt-2 inline-block bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
+          Live Voting Room
+        </div>
       </header>
 
-      <div className="flex gap-3 mb-12">
-        <input
-          type="text"
-          placeholder="Enter city..."
-          className="flex-1 p-4 border-2 border-black rounded-2xl font-bold text-lg outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-        />
-        <button
-          onClick={searchYelp}
-          className="bg-black text-white px-8 rounded-2xl font-black hover:bg-indigo-600 transition-all active:scale-95"
-        >
-          {loading ? '...' : 'SEARCH'}
-        </button>
-      </div>
+      <div className="space-y-4">
+        {poll?.restaurants?.map((opt) => {
+          const isWinner = poll.votes?.[opt.id] > 0 && poll.votes?.[opt.id] === maxVotes;
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-40">
-        {results.map((place) => {
-          const isSelected = selectedPlaces.some((p) => p.id === place.id);
           return (
             <div
-              key={place.id}
-              onClick={() => togglePlace(place)}
-              className={`relative cursor-pointer p-4 rounded-[2rem] border-4 transition-all duration-200 select-none ${
-                isSelected ? 'border-indigo-600 bg-indigo-50 shadow-xl scale-[1.02]' : 'border-gray-100 hover:border-black bg-white'
-              }`}
+              key={opt.id}
+              className={`relative border-2 transition-all duration-300 p-4 rounded-2xl flex justify-between items-center bg-white shadow-sm ${isWinner ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-black'}`}
             >
-              <img src={place.image_url} className="w-full h-48 object-cover rounded-[1.5rem] mb-4 pointer-events-none" alt="" />
-              <div className="px-2">
-                <h3 className="font-black text-xl leading-tight mb-1">{place.name}</h3>
-                <p className="text-gray-500 font-bold text-sm">{place.rating} ⭐ • {place.review_count} reviews</p>
-              </div>
-              {isSelected && (
-                <div className="absolute top-4 right-4 bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 border-white shadow-lg">
-                  ✓
+              {isWinner && (
+                <div className="absolute -top-3 -left-2 bg-yellow-400 text-sm rounded-full w-8 h-8 flex items-center justify-center shadow-lg border-2 border-white">
+                  👑
                 </div>
               )}
+
+              <div className="flex items-center gap-4">
+                {opt.image_url && (
+                  <img src={opt.image_url} alt={opt.name} className="w-14 h-14 object-cover rounded-xl shadow-inner" />
+                )}
+                <div className="max-w-[150px]">
+                  <h3 className="font-bold text-md leading-tight truncate">{opt.name}</h3>
+                  <p className="text-xs text-gray-500 font-medium">{opt.rating} ⭐ • {opt.price || '$$'}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => vote(opt.id)}
+                className={`flex flex-col items-center justify-center min-w-[75px] py-2 px-3 rounded-xl font-bold transition-all active:scale-90 ${isWinner ? 'bg-indigo-600 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
+              >
+                <span className="text-[10px] uppercase opacity-80">Votes</span>
+                <span className="text-xl">{poll.votes?.[opt.id] || 0}</span>
+              </button>
             </div>
           );
         })}
       </div>
 
-      {selectedPlaces.length > 0 && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-white border-4 border-black p-6 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center justify-between z-50">
-          <div>
-            <p className="font-black text-2xl leading-none">{selectedPlaces.length}</p>
-            <p className="text-[10px] uppercase font-bold text-gray-400">Selected</p>
-          </div>
-          <button
-            onClick={handleCreatePoll}
-            className="bg-indigo-600 text-white px-10 py-4 rounded-full font-black uppercase text-sm tracking-widest hover:bg-black transition-all active:scale-90"
-          >
-            Create Poll
-          </button>
+      <footer className="mt-12 p-6 border-t border-dashed border-gray-300 text-center">
+        <p className="text-gray-500 text-sm font-bold mb-2">Invite the squad</p>
+        <div className="bg-gray-200 p-3 rounded-lg text-[11px] font-mono break-all text-gray-600">
+          {typeof window !== 'undefined' ? window.location.href : ''}
         </div>
-      )}
+        <p className="mt-6 text-[10px] text-gray-400 font-bold uppercase tracking-widest">Powered by Supabase Realtime</p>
+      </footer>
     </div>
   );
 }
