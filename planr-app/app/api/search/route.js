@@ -12,5 +12,5 @@ export async function POST(req) {
   );
 
   const data = await res.json();
-  return NextResponse.json(data.businesses || []);
+return NextResponse.json(data);
 }
