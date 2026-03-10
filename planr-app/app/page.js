@@ -22,9 +22,7 @@ export default function Home() {
       const response = await fetch(`/api/search?location=${city}`);
       const data = await response.json();
       setResults(data.businesses || []);
-    } catch (err) {
-      console.error("Search failed", err);
-    }
+    } catch (err) { console.error(err); }
     setLoading(false);
   };
 
@@ -38,83 +36,76 @@ export default function Home() {
   };
 
   const handleCreatePoll = async () => {
-    const { data, error } = await supabase
-      .from('polls')
-      .insert([{
-        restaurants: selectedPlaces,
-        location: city,
-        votes: {},
-        is_closed: false
-      }])
-      .select();
-
+    const { data, error } = await supabase.from('polls').insert([{
+      restaurants: selectedPlaces,
+      location: city,
+      votes: {},
+      is_closed: false
+    }]).select();
     if (!error) router.push(`/poll/${data[0].id}`);
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-gray-50 min-h-screen font-sans">
-      <header className="mb-10 text-center">
-        <h1 className="text-5xl font-black italic text-indigo-600 tracking-tighter">PLANR.</h1>
-        <div className="mt-2 inline-block bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-          Search & Invite
-        </div>
+    <div style={{ backgroundColor: '#FFFDF9', minHeight: '100vh', fontFamily: 'sans-serif', color: '#2D2926', paddingBottom: '120px' }}>
+      {/* Header */}
+      <header style={{ textAlign: 'center', padding: '60px 20px 40px' }}>
+        <h1 style={{ fontSize: '48px', fontWeight: '900', fontStyle: 'italic', color: '#6366f1', letterSpacing: '-2px', margin: 0 }}>PLANR.</h1>
+        <p style={{ color: '#A0A0A0', fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '2px', marginTop: '10px' }}>The Squad Decider</p>
       </header>
 
-      <div className="flex gap-2 mb-8">
+      {/* Search Bar */}
+      <div style={{ maxWidth: '500px', margin: '0 auto 50px', padding: '0 20px', display: 'flex', gap: '10px' }}>
         <input
-          type="text"
-          placeholder="Enter City (e.g. Oslo)"
-          className="flex-1 p-4 border-2 border-black rounded-2xl font-bold text-sm shadow-sm outline-none focus:border-indigo-500 transition-colors"
+          style={{ flex: 1, padding: '20px 25px', borderRadius: '40px', border: '2px solid #EEE', fontSize: '16px', fontWeight: 'bold', outline: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.03)' }}
+          placeholder="Where are we eating?"
           value={city}
           onChange={(e) => setCity(e.target.value)}
         />
         <button
           onClick={searchYelp}
-          className="bg-black text-white px-6 rounded-2xl font-bold hover:bg-gray-800 active:scale-95 transition-all"
+          style={{ backgroundColor: '#000', color: '#FFF', padding: '0 30px', borderRadius: '40px', border: 'none', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}
         >
-          {loading ? '...' : 'Go'}
+          {loading ? '...' : 'GO'}
         </button>
       </div>
 
-      <div className="space-y-4 pb-32">
+      {/* Results */}
+      <div style={{ maxWidth: '500px', margin: '0 auto', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {results.map((place) => {
           const isSelected = selectedPlaces.find((p) => p.id === place.id);
           return (
             <div
               key={place.id}
               onClick={() => togglePlace(place)}
-              className={`border-2 transition-all duration-300 p-4 rounded-2xl flex justify-between items-center bg-white shadow-sm cursor-pointer ${
-                isSelected ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-100 hover:border-black'
-              }`}
+              style={{ position: 'relative', height: '350px', borderRadius: '35px', overflow: 'hidden', cursor: 'pointer', border: isSelected ? '5px solid #6366f1' : 'none', transition: '0.3s', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}
             >
-              <div className="flex items-center gap-4">
-                <img src={place.image_url} className="w-14 h-14 object-cover rounded-xl shadow-inner" alt="" />
-                <div className="max-w-[150px]">
-                  <h3 className="font-bold text-md leading-tight truncate">{place.name}</h3>
-                  <p className="text-xs text-gray-500 font-medium">{place.rating} ⭐ • {place.price || '$$'}</p>
-                </div>
+              <img src={place.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }} />
+              <div style={{ position: 'absolute', bottom: '30px', left: '30px', right: '30px', color: '#FFF' }}>
+                <p style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '5px', opacity: 0.8 }}>{place.location.city}</p>
+                <h3 style={{ fontSize: '24px', fontWeight: '900', margin: 0 }}>{place.name}</h3>
+                <p style={{ fontSize: '14px', marginTop: '5px' }}>{place.rating} ★ • {place.price || '$$'}</p>
               </div>
-              <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
-                isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-200 text-transparent'
-              }`}>
-                ✓
+              <div style={{ position: 'absolute', top: '25px', right: '25px', width: '45px', height: '45px', borderRadius: '50%', backgroundColor: isSelected ? '#6366f1' : 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyCenter: 'center', color: '#FFF', fontWeight: 'bold', fontSize: '20px', display: 'flex', justifyContent: 'center' }}>
+                {isSelected ? '✓' : '+'}
               </div>
             </div>
           );
         })}
       </div>
 
+      {/* Floating Action Bar */}
       {selectedPlaces.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-white border-2 border-black p-4 rounded-3xl shadow-2xl flex items-center justify-between animate-in slide-in-from-bottom-5">
-          <div className="pl-2">
-            <p className="font-black text-indigo-600 text-lg leading-none">{selectedPlaces.length}/5</p>
-            <p className="text-[10px] uppercase font-bold text-gray-400 tracking-tight">Selected</p>
+        <div style={{ position: 'fixed', bottom: '40px', left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: '400px', backgroundColor: '#000', padding: '20px 30px', borderRadius: '50px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 30px 60px rgba(0,0,0,0.4)', zIndex: 100 }}>
+          <div style={{ color: '#FFF' }}>
+            <p style={{ margin: 0, fontSize: '22px', fontWeight: '900' }}>{selectedPlaces.length}</p>
+            <p style={{ margin: 0, fontSize: '10px', fontWeight: 'bold', color: '#666', textTransform: 'uppercase' }}>Selected</p>
           </div>
           <button
             onClick={handleCreatePoll}
-            className="bg-black text-white px-8 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-indigo-600 active:scale-90 transition-all"
+            style={{ backgroundColor: '#6366f1', color: '#FFF', border: 'none', padding: '15px 35px', borderRadius: '30px', fontWeight: '900', textTransform: 'uppercase', fontSize: '12px', cursor: 'pointer' }}
           >
-            Create Group Poll
+            Create Poll
           </button>
         </div>
       )}
