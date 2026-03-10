@@ -10,7 +10,7 @@ const supabase = createClient(
 
 export default function Home() {
   const [city, setCity] = useState('');
-  const [activity, setActivity] = useState('restaurants'); // restaurants, bars, active
+  const [activity, setActivity] = useState('restaurants');
   const [groupSize, setGroupSize] = useState('4');
   const [results, setResults] = useState([]);
   const [selectedPlaces, setSelectedPlaces] = useState([]);
@@ -20,7 +20,6 @@ export default function Home() {
   const searchVibe = async () => {
     if (!city) return;
     setLoading(true);
-    // We pass 'activity' to our API to filter Yelp categories
     try {
       const response = await fetch(`/api/search?location=${city}&term=${activity}`);
       const data = await response.json();
@@ -39,14 +38,23 @@ export default function Home() {
   };
 
   const handleCreatePoll = async () => {
+    if (selectedPlaces.length === 0) return alert("Pick some spots first!");
+
     const { data, error } = await supabase.from('polls').insert([{
       restaurants: selectedPlaces,
       location: city,
       votes: {},
       is_closed: false,
-      metadata: { activity, groupSize } // Storing the vibe
+      group_size: groupSize,      // Matches Supabase column
+      activity_type: activity     // Matches Supabase column
     }]).select();
-    if (!error) router.push(`/poll/${data[0].id}`);
+
+    if (error) {
+        console.error(error);
+        alert("Database Error: " + error.message);
+    } else {
+        router.push(`/poll/${data[0].id}`);
+    }
   };
 
   return (
@@ -78,51 +86,51 @@ export default function Home() {
                 placeholder="City"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                style={{ flex: 2, padding: '15px 20px', borderRadius: '15px', border: '1px solid #EEE', fontWeight: 'bold' }}
+                style={{ flex: 2, padding: '15px 20px', borderRadius: '15px', border: '1px solid #EEE', fontWeight: 'bold', outline: 'none' }}
              />
              <select
                 value={groupSize}
                 onChange={(e) => setGroupSize(e.target.value)}
-                style={{ flex: 1, padding: '15px', borderRadius: '15px', border: '1px solid #EEE', fontWeight: 'bold' }}
+                style={{ flex: 1, padding: '15px', borderRadius: '15px', border: '1px solid #EEE', fontWeight: 'bold', outline: 'none', backgroundColor: '#FFF' }}
              >
-                {[2,4,6,8,10].map(n => <option key={n} value={n}>{n} People</option>)}
+                {[2,4,6,8,10,12].map(n => <option key={n} value={n}>{n} PPL</option>)}
              </select>
           </div>
 
           <button
             onClick={searchVibe}
-            style={{ width: '100%', backgroundColor: '#000', color: '#FFF', padding: '18px', borderRadius: '20px', border: 'none', fontWeight: '900', cursor: 'pointer' }}
+            style={{ width: '100%', backgroundColor: '#000', color: '#FFF', padding: '18px', borderRadius: '20px', border: 'none', fontWeight: '900', cursor: 'pointer', letterSpacing: '1px' }}
           >
-            {loading ? 'Searching...' : 'Find Options'}
+            {loading ? 'SEARCHING...' : 'FIND OPTIONS'}
           </button>
         </div>
       </div>
 
       {/* RESULTS */}
-      <div style={{ maxWidth: '500px', margin: '0 auto', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ maxWidth: '500px', margin: '0 auto', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
         {results.map((place) => {
           const isSelected = selectedPlaces.find((p) => p.id === place.id);
           return (
-            <div key={place.id} style={{ position: 'relative', borderRadius: '35px', overflow: 'hidden', border: isSelected ? '5px solid #6366f1' : '1px solid #EEE' }}>
-              <div onClick={() => togglePlace(place)} style={{ height: '300px', cursor: 'pointer' }}>
+            <div key={place.id} style={{ position: 'relative', borderRadius: '35px', overflow: 'hidden', border: isSelected ? '5px solid #6366f1' : '1px solid #EEE', transition: '0.2s' }}>
+              <div onClick={() => togglePlace(place)} style={{ height: '320px', cursor: 'pointer' }}>
                 <img src={place.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }} />
-                <div style={{ position: 'absolute', bottom: '25px', left: '25px', color: '#FFF' }}>
-                  <h3 style={{ fontSize: '22px', fontWeight: '900', margin: 0 }}>{place.name}</h3>
-                  <p style={{ fontSize: '12px', opacity: 0.8 }}>{place.rating} ★ • {place.price || '$$'}</p>
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)' }} />
+                <div style={{ position: 'absolute', bottom: '30px', left: '30px', color: '#FFF' }}>
+                  <h3 style={{ fontSize: '24px', fontWeight: '900', margin: 0, letterSpacing: '-0.5px' }}>{place.name}</h3>
+                  <p style={{ fontSize: '13px', opacity: 0.9, marginTop: '4px', fontWeight: 'bold' }}>{place.rating} ★ • {place.price || '$$'}</p>
                 </div>
               </div>
 
-              {/* NEW: MENU LINK */}
               <a
                 href={place.url}
                 target="_blank"
-                style={{ position: 'absolute', top: '20px', left: '20px', backgroundColor: 'rgba(255,255,255,0.9)', padding: '8px 15px', borderRadius: '12px', fontSize: '10px', fontWeight: '900', color: '#000', textDecoration: 'none', backdropFilter: 'blur(5px)' }}
+                rel="noopener noreferrer"
+                style={{ position: 'absolute', top: '25px', left: '25px', backgroundColor: 'rgba(255,255,255,0.95)', padding: '10px 18px', borderRadius: '15px', fontSize: '10px', fontWeight: '900', color: '#000', textDecoration: 'none', backdropFilter: 'blur(10px)', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
               >
-                📖 VIEW MENU
+                📖 MENU & INFO
               </a>
 
-              <div style={{ position: 'absolute', top: '20px', right: '20px', width: '40px', height: '40px', borderRadius: '50%', backgroundColor: isSelected ? '#6366f1' : 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 'bold' }}>
+              <div style={{ position: 'absolute', top: '25px', right: '25px', width: '45px', height: '45px', borderRadius: '50%', backgroundColor: isSelected ? '#6366f1' : 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 'bold', fontSize: '20px', backdropFilter: 'blur(5px)', cursor: 'pointer' }} onClick={() => togglePlace(place)}>
                 {isSelected ? '✓' : '+'}
               </div>
             </div>
@@ -130,11 +138,19 @@ export default function Home() {
         })}
       </div>
 
-      {/* BOTTOM BAR */}
+      {/* BOTTOM ACTION BAR */}
       {selectedPlaces.length > 0 && (
-        <div style={{ position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: '400px', backgroundColor: '#000', padding: '20px', borderRadius: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100 }}>
-          <span style={{ color: '#FFF', fontWeight: '900', marginLeft: '10px' }}>{selectedPlaces.length} Picked</span>
-          <button onClick={handleCreatePoll} style={{ backgroundColor: '#6366f1', color: '#FFF', border: 'none', padding: '12px 25px', borderRadius: '20px', fontWeight: '900' }}>CREATE POLL</button>
+        <div style={{ position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: '400px', backgroundColor: '#1A1A1A', padding: '18px 25px', borderRadius: '35px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100, boxShadow: '0 20px 50px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div>
+            <span style={{ color: '#FFF', fontWeight: '900', fontSize: '20px', display: 'block', lineHeight: 1 }}>{selectedPlaces.length}</span>
+            <span style={{ color: '#777', fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase' }}>Selected</span>
+          </div>
+          <button
+            onClick={handleCreatePoll}
+            style={{ backgroundColor: '#6366f1', color: '#FFF', border: 'none', padding: '14px 28px', borderRadius: '20px', fontWeight: '900', fontSize: '12px', cursor: 'pointer', letterSpacing: '0.5px' }}
+          >
+            CREATE GROUP POLL
+          </button>
         </div>
       )}
     </div>
