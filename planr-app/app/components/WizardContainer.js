@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import SelectionCard from './SelectionCard';
+import VenueCard from './VenueCard';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -256,53 +257,14 @@ export default function WizardContainer() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {results.map((venue) => {
-                const isSelected = !!selectedPlaces.find((p) => p.id === venue.id);
-                return (
-                  <div
-                    key={venue.id}
-                    onClick={() => togglePlace(venue)}
-                    style={{
-                      position: 'relative',
-                      borderRadius: 0,
-                      overflow: 'hidden',
-                      border: isSelected ? '5px solid #0A0A0A' : '2px solid #0A0A0A',
-                      cursor: 'pointer',
-                      boxShadow: isSelected ? 'none' : '5px 5px 0px 0px rgba(0,0,0,1)',
-                      transform: isSelected ? 'translate(5px,5px)' : 'none',
-                      transition: 'none',
-                    }}
-                  >
-                    <div style={{ height: '280px' }}>
-                      <img
-                        src={venue.hero_image_url}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                        alt=""
-                      />
-                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 55%)' }} />
-                    </div>
-
-                    <div style={{ position: 'absolute', bottom: '20px', left: '20px', right: '80px', color: '#FFF' }}>
-                      <h3 style={{ ...DISPLAY, fontSize: '1.6rem', margin: 0 }}>{venue.name}</h3>
-                      <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.75rem', opacity: 0.8, marginTop: '4px' }}>
-                        {venue.neighborhood} · {venue.logistics_badge || ''}
-                      </p>
-                    </div>
-
-                    <div style={{
-                      position: 'absolute', bottom: '20px', right: '20px',
-                      width: '44px', height: '44px',
-                      backgroundColor: isSelected ? '#0A0A0A' : 'rgba(255,255,255,0.9)',
-                      border: '2px solid #0A0A0A',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 900, fontSize: '1.2rem',
-                      color: isSelected ? '#FFF' : '#0A0A0A',
-                    }}>
-                      {isSelected ? '✓' : '+'}
-                    </div>
-                  </div>
-                );
-              })}
+              {results.map((venue) => (
+                <VenueCard
+                  key={venue.id}
+                  venue={venue}
+                  isSelected={!!selectedPlaces.find((p) => p.id === venue.id)}
+                  onToggle={() => togglePlace(venue)}
+                />
+              ))}
             </div>
 
             <div style={{ marginTop: '20px' }}>
