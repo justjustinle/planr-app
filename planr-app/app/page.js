@@ -81,13 +81,18 @@ export default function Home() {
           </div>
 
           <p style={{ fontSize: '10px', fontWeight: '900', color: '#AAA', textTransform: 'uppercase', marginBottom: '15px' }}>2. The Details</p>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+            {['North', 'East', 'West', 'South', 'Central'].map((area) => (
+              <button
+                key={area}
+                onClick={() => setCity(area)}
+                style={{ flex: 1, minWidth: '60px', padding: '12px 8px', borderRadius: '15px', border: 'none', backgroundColor: city === area ? '#6366f1' : '#F3F4F6', color: city === area ? '#FFF' : '#666', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer', transition: '0.2s' }}
+              >
+                {area}
+              </button>
+            ))}
+          </div>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-             <input
-                placeholder="City"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                style={{ flex: 2, padding: '15px 20px', borderRadius: '15px', border: '1px solid #EEE', fontWeight: 'bold', outline: 'none' }}
-             />
              <select
                 value={groupSize}
                 onChange={(e) => setGroupSize(e.target.value)}
