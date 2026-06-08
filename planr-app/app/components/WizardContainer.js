@@ -12,11 +12,11 @@ const supabase = createClient(
 const STEP = { WHERE: 1, WHAT: 2, WHO: 3, RESULTS: 4 };
 
 const WHERE_OPTIONS = [
-  { value: 'central', label: 'Central', emoji: '🏛️', sublabel: 'Soho · Covent Garden · Mayfair' },
-  { value: 'north',   label: 'North',   emoji: '🌿', sublabel: 'Islington · Camden · Kentish Town' },
-  { value: 'east',    label: 'East',    emoji: '⚡', sublabel: 'Shoreditch · Dalston · Hackney' },
-  { value: 'south',   label: 'South',   emoji: '🌊', sublabel: 'Brixton · Peckham · Clapham' },
-  { value: 'west',    label: 'West',    emoji: '✨', sublabel: 'Notting Hill · Chelsea · Fulham' },
+  { value: 'central', label: 'Central' },
+  { value: 'north',   label: 'North' },
+  { value: 'east',    label: 'East' },
+  { value: 'south',   label: 'South' },
+  { value: 'west',    label: 'West' },
 ];
 
 const WHAT_OPTIONS = [
@@ -109,15 +109,15 @@ export default function WizardContainer() {
 
       {/* Header */}
       <header className="text-center pt-12 pb-4 px-5">
-        <h1 className="text-5xl font-black italic text-indigo-500 tracking-tighter leading-none">PLANR.</h1>
+        <h1 className="text-5xl font-black italic text-[#FAC898] tracking-tighter leading-none">PLANR.</h1>
         <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-widest">London in 60 seconds</p>
       </header>
 
-      {/* Progress */}
+      {/* Progress bar */}
       <div className="max-w-md mx-auto px-5 mb-8 mt-4">
         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-indigo-500 rounded-full transition-all duration-500 ease-out"
+            className="h-full bg-[#FAC898] rounded-full transition-all duration-500 ease-out"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -127,7 +127,7 @@ export default function WizardContainer() {
               <span
                 key={label}
                 className={`text-[10px] font-bold transition-colors ${
-                  step === i + 1 ? 'text-indigo-500' : step > i + 1 ? 'text-gray-300' : 'text-gray-200'
+                  step === i + 1 ? 'text-[#FAC898]' : 'text-gray-200'
                 }`}
               >
                 {label}
@@ -144,7 +144,7 @@ export default function WizardContainer() {
         {step > STEP.WHERE && (
           <button
             onClick={back}
-            className="mb-5 flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-indigo-500 transition-colors"
+            className="mb-5 flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-[#FAC898] transition-colors"
           >
             ← Back
           </button>
@@ -213,16 +213,16 @@ export default function WizardContainer() {
           <div className="animate-fade-in">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-28 gap-4">
-                <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-10 h-10 border-4 border-[#FAC898] border-t-transparent rounded-full animate-spin" />
                 <p className="text-sm font-bold text-gray-400">Finding your spot…</p>
               </div>
             ) : (
               <>
                 {/* Fuzzy match banner */}
                 {fuzzy && fuzzyMeta && (
-                  <div className="mb-5 bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                    <p className="text-xs font-black text-amber-600 uppercase tracking-wide mb-1">Heads up</p>
-                    <p className="text-sm font-bold text-amber-800 leading-snug">
+                  <div className="mb-5 bg-[#FAC898]/10 border border-[#FAC898]/40 rounded-2xl p-4">
+                    <p className="text-xs font-black text-[#c8895a] uppercase tracking-wide mb-1">Heads up</p>
+                    <p className="text-sm font-bold text-gray-700 leading-snug">
                       Nothing fits &ldquo;<span className="capitalize">{fuzzyMeta.requested}</span>&rdquo; here right now — but here&rsquo;s a great nearby spot you&rsquo;ll love!
                     </p>
                   </div>
@@ -231,10 +231,10 @@ export default function WizardContainer() {
                 {/* Results header */}
                 <div className="mb-5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="bg-indigo-100 text-indigo-600 text-xs font-black px-3 py-1 rounded-full capitalize">{neighborhood}</span>
-                    <span className="bg-indigo-100 text-indigo-600 text-xs font-black px-3 py-1 rounded-full capitalize">{activityType}</span>
+                    <span className="bg-[#FAC898]/20 text-gray-700 text-xs font-black px-3 py-1 rounded-full capitalize">{neighborhood}</span>
+                    <span className="bg-[#FAC898]/20 text-gray-700 text-xs font-black px-3 py-1 rounded-full capitalize">{activityType}</span>
                     {!fuzzy && (
-                      <span className="bg-indigo-100 text-indigo-600 text-xs font-black px-3 py-1 rounded-full capitalize">{energyTag}</span>
+                      <span className="bg-[#FAC898]/20 text-gray-700 text-xs font-black px-3 py-1 rounded-full capitalize">{energyTag}</span>
                     )}
                   </div>
                   <p className="text-xs text-gray-400 font-bold mt-2">
@@ -261,18 +261,14 @@ export default function WizardContainer() {
                         onClick={() => toggleVenue(venue)}
                         className={`relative h-72 rounded-[2rem] overflow-hidden cursor-pointer transition-all duration-300 ${
                           isSelected
-                            ? 'ring-4 ring-indigo-500 ring-offset-2 scale-[1.01]'
-                            : 'ring-2 ring-gray-100 hover:ring-indigo-200'
+                            ? 'ring-4 ring-[#FAC898] ring-offset-2 scale-[1.01]'
+                            : 'ring-2 ring-gray-100 hover:ring-[#FAC898]/50'
                         }`}
                       >
                         {venue.hero_image_url ? (
-                          <img
-                            src={venue.hero_image_url}
-                            alt={venue.name}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={venue.hero_image_url} alt={venue.name} className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-600" />
+                          <div className="w-full h-full bg-gradient-to-br from-[#FAC898] to-orange-300" />
                         )}
 
                         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
@@ -289,7 +285,7 @@ export default function WizardContainer() {
                         {/* Select toggle */}
                         <div className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center text-lg font-black transition-all ${
                           isSelected
-                            ? 'bg-indigo-500 text-white shadow-lg'
+                            ? 'bg-[#FAC898] text-gray-900 shadow-lg'
                             : 'bg-black/30 backdrop-blur-sm text-white'
                         }`}>
                           {isSelected ? '✓' : '+'}
@@ -331,7 +327,7 @@ export default function WizardContainer() {
           <button
             onClick={createPoll}
             disabled={pollCreating}
-            className="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-xs tracking-wide transition-colors disabled:opacity-60"
+            className="bg-[#FAC898] hover:bg-[#f8b87a] text-gray-900 px-6 py-3 rounded-2xl font-black text-xs tracking-wide transition-colors disabled:opacity-60"
           >
             {pollCreating ? 'Creating…' : 'CREATE GROUP POLL'}
           </button>
