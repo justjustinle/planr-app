@@ -50,11 +50,11 @@ const WHAT_OPTIONS = [
 ];
 
 const WHO_OPTIONS = [
-  { value: 'romantic',    label: 'Romantic',    sublabel: 'Date night' },
-  { value: 'squad',       label: 'Squad',       sublabel: 'Group energy' },
-  { value: 'celebration', label: 'Celebration', sublabel: 'Special occasion' },
-  { value: 'playful',     label: 'Playful',     sublabel: 'Fun & silly' },
-  { value: 'lowkey',      label: 'Lowkey',      sublabel: 'Chill & easy' },
+  { value: 'romantic', label: 'Romantic', sublabel: 'Date night' },
+  { value: 'squad',    label: 'Squad',    sublabel: 'Group energy' },
+  { value: 'fancy',    label: 'Fancy',    sublabel: 'Special occasion' },
+  { value: 'playful',  label: 'Playful',  sublabel: 'Fun & silly' },
+  { value: 'lowkey',   label: 'Lowkey',   sublabel: 'Chill & easy' },
 ];
 
 export default function WizardContainer() {
@@ -193,8 +193,8 @@ export default function WizardContainer() {
               Select your neighbourhood
             </p>
             <div className="grid grid-cols-2 gap-3">
-              {WHERE_OPTIONS.map((opt, i) => (
-                <div key={opt.value} className={i === 4 ? 'col-span-2' : ''}>
+              {WHERE_OPTIONS.map((opt) => (
+                <div key={opt.value}>
                   <SelectionCard
                     label={opt.label}
                     selected={neighborhood === opt.value}
@@ -242,8 +242,8 @@ export default function WizardContainer() {
               Set the vibe
             </p>
             <div className="grid grid-cols-2 gap-3">
-              {WHO_OPTIONS.map((opt, i) => (
-                <div key={opt.value} className={i === 4 ? 'col-span-2' : ''}>
+              {WHO_OPTIONS.map((opt) => (
+                <div key={opt.value}>
                   <SelectionCard
                     label={opt.label}
                     sublabel={opt.sublabel}
