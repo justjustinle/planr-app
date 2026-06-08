@@ -13,10 +13,10 @@ const STEP = { WHERE: 1, WHAT: 2, WHO: 3, RESULTS: 4 };
 
 // Per-step: background + foreground text color for titles/UI chrome
 const STEP_THEME = {
-  [STEP.WHERE]:   { bg: '#FCE22A', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
-  [STEP.WHAT]:    { bg: '#0029FF', fg: '#FFFFFF',  shadow: 'rgba(0,0,0,1)' },
-  [STEP.WHO]:     { bg: '#FF4800', fg: '#FFFFFF',  shadow: 'rgba(0,0,0,1)' },
-  [STEP.RESULTS]: { bg: '#FCE22A', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
+  [STEP.WHERE]:   { bg: '#F8E98A', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
+  [STEP.WHAT]:    { bg: '#7188F0', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
+  [STEP.WHO]:     { bg: '#F8976F', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
+  [STEP.RESULTS]: { bg: '#F8E98A', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
 };
 
 const WHERE_OPTIONS = [
@@ -55,7 +55,7 @@ export default function WizardContainer() {
   const [pollCreating, setPollCreating] = useState(false);
 
   const { bg, fg } = STEP_THEME[step];
-  const isLight = step === STEP.WHERE || step === STEP.RESULTS;
+  const isLight = true; // all pastel steps use dark text
 
   const pickNeighborhood = (value) => {
     setNeighborhood(value);
