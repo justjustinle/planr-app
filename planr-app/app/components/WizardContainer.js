@@ -11,11 +11,12 @@ const supabase = createClient(
 
 const STEP = { WHERE: 1, WHAT: 2, WHO: 3, RESULTS: 4 };
 
-const STEP_BG = {
-  [STEP.WHERE]:   '#F5EBE6',
-  [STEP.WHAT]:    '#0029FF',
-  [STEP.WHO]:     '#FF4800',
-  [STEP.RESULTS]: '#F5EBE6',
+// Per-step: background + foreground text color for titles/UI chrome
+const STEP_THEME = {
+  [STEP.WHERE]:   { bg: '#FCE22A', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
+  [STEP.WHAT]:    { bg: '#0029FF', fg: '#FFFFFF',  shadow: 'rgba(0,0,0,1)' },
+  [STEP.WHO]:     { bg: '#FF4800', fg: '#FFFFFF',  shadow: 'rgba(0,0,0,1)' },
+  [STEP.RESULTS]: { bg: '#FCE22A', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
 };
 
 const WHERE_OPTIONS = [
@@ -52,6 +53,9 @@ export default function WizardContainer() {
   const [fuzzy, setFuzzy] = useState(false);
   const [fuzzyMeta, setFuzzyMeta] = useState(null);
   const [pollCreating, setPollCreating] = useState(false);
+
+  const { bg, fg } = STEP_THEME[step];
+  const isLight = step === STEP.WHERE || step === STEP.RESULTS;
 
   const pickNeighborhood = (value) => {
     setNeighborhood(value);
@@ -112,38 +116,52 @@ export default function WizardContainer() {
   return (
     <div
       className="min-h-screen pb-32"
-      style={{ backgroundColor: STEP_BG[step], transition: 'background-color 0.5s ease' }}
+      style={{ backgroundColor: bg, transition: 'background-color 0.4s ease' }}
     >
 
       {/* ── MASTHEAD ── */}
-      <header className="border-b-2 border-black px-5 pt-8 pb-5">
+      <header
+        className="border-b-2 border-black px-5 pt-8 pb-5"
+        style={{ borderColor: isLight ? '#0A0A0A' : '#0A0A0A' }}
+      >
         <div className="max-w-md mx-auto">
           <div className="flex items-end justify-between">
-            <h1 className="font-headline text-7xl leading-none tracking-tighter text-black">
+            <h1
+              className="font-headline text-7xl leading-none tracking-tighter"
+              style={{
+                color: fg,
+                filter: isLight ? 'none' : 'drop-shadow(2px 2px 0 rgba(0,0,0,1))',
+              }}
+            >
               PLANR.
             </h1>
             {step < STEP.RESULTS && (
-              <span className="font-headline text-2xl text-black/30 leading-none mb-1">
+              <span
+                className="font-headline text-2xl leading-none mb-1"
+                style={{ color: fg, opacity: 0.4 }}
+              >
                 0{step}&thinsp;/&thinsp;03
               </span>
             )}
           </div>
 
-          {/* Step indicator strip */}
+          {/* Step tab strip */}
           {step < STEP.RESULTS && (
             <div className="flex mt-5 border-2 border-black" style={{ width: 'fit-content' }}>
               {['WHERE', 'WHAT', 'WHO'].map((label, i) => {
                 const s = i + 1;
+                const isActive = step === s;
+                const isDone   = step > s;
                 return (
                   <div
                     key={label}
-                    style={step === s
-                      ? { backgroundColor: '#0A0A0A', color: '#FFFFFF' }
-                      : step > s
-                      ? { backgroundColor: '#0A0A0A', color: '#FFFFFF', opacity: 0.35 }
-                      : { backgroundColor: 'transparent', color: '#0A0A0A', opacity: 0.25 }
-                    }
                     className="px-4 py-1.5 font-headline text-[10px] tracking-widest border-r-2 border-black last:border-r-0"
+                    style={isActive
+                      ? { backgroundColor: '#0A0A0A', color: bg }
+                      : isDone
+                      ? { backgroundColor: '#0A0A0A', color: bg, opacity: 0.4 }
+                      : { backgroundColor: 'transparent', color: fg, opacity: 0.3 }
+                    }
                   >
                     {label}
                   </div>
@@ -154,14 +172,14 @@ export default function WizardContainer() {
         </div>
       </header>
 
-      {/* ── MAIN CONTENT ── */}
+      {/* ── CONTENT ── */}
       <div className="max-w-md mx-auto px-5 pt-7">
 
         {step > STEP.WHERE && (
           <button
             onClick={back}
-            className="mb-6 font-headline text-xs tracking-widest uppercase text-black/40 hover:text-black"
-            style={{ transition: 'none' }}
+            className="mb-6 font-headline text-xs tracking-widest uppercase"
+            style={{ color: fg, opacity: 0.5, transition: 'none' }}
           >
             ← Back
           </button>
@@ -170,10 +188,12 @@ export default function WizardContainer() {
         {/* ── STEP 1: WHERE ── */}
         {step === STEP.WHERE && (
           <div className="animate-fade-in">
-            <h2 className="font-headline text-5xl tracking-tighter text-black leading-none mb-1">
+            <h2 className="font-headline text-5xl tracking-tighter leading-none mb-1" style={{ color: fg }}>
               WHERE IN<br />LONDON?
             </h2>
-            <p className="font-body text-xs text-black/40 tracking-widest uppercase mb-7">Select your neighbourhood</p>
+            <p className="font-body text-xs tracking-widest uppercase mb-7" style={{ color: fg, opacity: 0.5 }}>
+              Select your neighbourhood
+            </p>
             <div className="grid grid-cols-2 gap-3">
               {WHERE_OPTIONS.map((opt, i) => (
                 <div key={opt.value} className={i === 4 ? 'col-span-2' : ''}>
@@ -181,6 +201,7 @@ export default function WizardContainer() {
                     label={opt.label}
                     selected={neighborhood === opt.value}
                     onClick={() => pickNeighborhood(opt.value)}
+                    accentColor={bg}
                   />
                 </div>
               ))}
@@ -191,10 +212,15 @@ export default function WizardContainer() {
         {/* ── STEP 2: WHAT ── */}
         {step === STEP.WHAT && (
           <div className="animate-fade-in">
-            <h2 className="font-headline text-5xl tracking-tighter text-black leading-none mb-1">
+            <h2
+              className="font-headline text-5xl tracking-tighter leading-none mb-1"
+              style={{ color: fg, filter: 'drop-shadow(2px 2px 0 rgba(0,0,0,1))' }}
+            >
               WHAT'S<br />THE PLAN?
             </h2>
-            <p className="font-body text-xs text-black/40 tracking-widest uppercase mb-7">Choose an activity</p>
+            <p className="font-body text-xs tracking-widest uppercase mb-7" style={{ color: fg, opacity: 0.6 }}>
+              Choose an activity
+            </p>
             <div className="flex flex-col gap-3">
               {WHAT_OPTIONS.map(opt => (
                 <SelectionCard
@@ -203,6 +229,7 @@ export default function WizardContainer() {
                   sublabel={opt.sublabel}
                   selected={activityType === opt.value}
                   onClick={() => pickActivity(opt.value)}
+                  accentColor={bg}
                 />
               ))}
             </div>
@@ -212,10 +239,15 @@ export default function WizardContainer() {
         {/* ── STEP 3: WHO ── */}
         {step === STEP.WHO && (
           <div className="animate-fade-in">
-            <h2 className="font-headline text-5xl tracking-tighter text-black leading-none mb-1">
+            <h2
+              className="font-headline text-5xl tracking-tighter leading-none mb-1"
+              style={{ color: fg, filter: 'drop-shadow(2px 2px 0 rgba(0,0,0,1))' }}
+            >
               WHAT'S THE<br />ENERGY?
             </h2>
-            <p className="font-body text-xs text-black/40 tracking-widest uppercase mb-7">Set the vibe</p>
+            <p className="font-body text-xs tracking-widest uppercase mb-7" style={{ color: fg, opacity: 0.6 }}>
+              Set the vibe
+            </p>
             <div className="grid grid-cols-2 gap-3">
               {WHO_OPTIONS.map((opt, i) => (
                 <div key={opt.value} className={i === 4 ? 'col-span-2' : ''}>
@@ -224,6 +256,7 @@ export default function WizardContainer() {
                     sublabel={opt.sublabel}
                     selected={energyTag === opt.value}
                     onClick={() => pickEnergy(opt.value)}
+                    accentColor={bg}
                   />
                 </div>
               ))}
@@ -236,7 +269,10 @@ export default function WizardContainer() {
           <div className="animate-fade-in">
             {loading ? (
               <div className="pt-32 text-center">
-                <p className="font-headline text-5xl tracking-tighter text-black animate-pulse">
+                <p
+                  className="font-headline text-5xl tracking-tighter animate-pulse"
+                  style={{ color: fg }}
+                >
                   FINDING<br />YOUR SPOT…
                 </p>
               </div>
@@ -293,8 +329,8 @@ export default function WizardContainer() {
                         onClick={() => toggleVenue(venue)}
                         className="border-2 border-black cursor-pointer overflow-hidden bg-white"
                         style={isSelected
-                          ? { boxShadow: 'none', transform: 'translate(4px, 4px)' }
-                          : { boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }
+                          ? { boxShadow: 'none', transform: 'translate(6px, 6px)' }
+                          : { boxShadow: '6px 6px 0px 0px rgba(0,0,0,1)' }
                         }
                       >
                         {/* 4:3 image */}
@@ -302,25 +338,18 @@ export default function WizardContainer() {
                           {venue.hero_image_url ? (
                             <img src={venue.hero_image_url} alt={venue.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full bg-[#f4f1ea] flex items-center justify-center">
-                              <span className="font-headline text-xl tracking-tighter text-black/20 uppercase">No Image</span>
+                            <div className="w-full h-full bg-[#FCE22A] flex items-center justify-center">
+                              <span className="font-headline text-xl tracking-tighter text-black/30 uppercase">No Image</span>
                             </div>
                           )}
-
                           {venue.logistics_badge && (
                             <div className="absolute top-3 left-3 bg-white border border-black px-2 py-1">
-                              <span className="font-headline text-[10px] tracking-widest uppercase text-black">
-                                {venue.logistics_badge}
-                              </span>
+                              <span className="font-headline text-[10px] tracking-widest uppercase text-black">{venue.logistics_badge}</span>
                             </div>
                           )}
-
                           <div className="absolute top-3 right-3 bg-white border border-black px-2 py-1">
-                            <span className="font-headline text-[10px] tracking-widest uppercase text-black capitalize">
-                              {venue.energy_tag}
-                            </span>
+                            <span className="font-headline text-[10px] tracking-widest uppercase text-black capitalize">{venue.energy_tag}</span>
                           </div>
-
                           {isSelected && (
                             <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                               <span className="font-headline text-4xl text-white tracking-tighter">ADDED ✓</span>
@@ -329,10 +358,7 @@ export default function WizardContainer() {
                         </div>
 
                         {/* Info */}
-                        <div
-                          className="p-4"
-                          style={{ backgroundColor: isSelected ? '#0A0A0A' : '#FFFFFF' }}
-                        >
+                        <div className="p-4" style={{ backgroundColor: isSelected ? '#0A0A0A' : '#FFFFFF' }}>
                           <div className="flex items-start justify-between gap-3">
                             <h3
                               className="font-headline text-2xl tracking-tighter leading-none uppercase"
@@ -353,7 +379,7 @@ export default function WizardContainer() {
                           {venue.pro_tip && (
                             <p
                               className="font-body text-xs mt-3 leading-relaxed italic"
-                              style={{ color: isSelected ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)' }}
+                              style={{ color: isSelected ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' }}
                             >
                               &ldquo;{venue.pro_tip}&rdquo;
                             </p>
@@ -381,7 +407,7 @@ export default function WizardContainer() {
               onClick={createPoll}
               disabled={pollCreating}
               className="bg-white text-black border-2 border-white font-headline text-sm tracking-widest uppercase px-6 py-3 disabled:opacity-50"
-              style={{ boxShadow: '3px 3px 0 rgba(255,255,255,0.2)', transition: 'none' }}
+              style={{ boxShadow: '3px 3px 0 rgba(255,255,255,0.25)', transition: 'none' }}
             >
               {pollCreating ? 'CREATING…' : 'CREATE POLL →'}
             </button>
