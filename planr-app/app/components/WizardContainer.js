@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import SelectionCard from './SelectionCard';
+import VenueCard from './VenueCard';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -303,71 +304,14 @@ export default function WizardContainer() {
                 )}
 
                 <div className="flex flex-col gap-5">
-                  {venues.map(venue => {
-                    const isSelected = !!selected.find(v => v.id === venue.id);
-                    return (
-                      <div
-                        key={venue.id}
-                        onClick={() => toggleVenue(venue)}
-                        className="border-2 border-black cursor-pointer overflow-hidden bg-white"
-                        style={isSelected
-                          ? { boxShadow: 'none', transform: 'translate(5px, 5px)' }
-                          : { boxShadow: '5px 5px 0px 0px rgba(0,0,0,1)' }
-                        }
-                      >
-                        <div className="relative w-full border-b-2 border-black" style={{ aspectRatio: '4/3' }}>
-                          {venue.hero_image_url ? (
-                            <img src={venue.hero_image_url} alt={venue.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-[#F8E98A] flex items-center justify-center">
-                              <span style={{ ...DISPLAY, fontSize: '1.25rem', color: 'rgba(0,0,0,0.25)' }}>No Image</span>
-                            </div>
-                          )}
-                          {venue.logistics_badge && (
-                            <div className="absolute top-3 left-3 bg-white border border-black px-2 py-1">
-                              <span style={{ ...META, fontSize: '0.6rem', color: '#0A0A0A' }}>{venue.logistics_badge}</span>
-                            </div>
-                          )}
-                          <div className="absolute top-3 right-3 bg-white border border-black px-2 py-1">
-                            <span style={{ ...META, fontSize: '0.6rem', color: '#0A0A0A' }}>{venue.energy_tag}</span>
-                          </div>
-                          {isSelected && (
-                            <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                              <span style={{ ...DISPLAY, fontSize: '2.5rem', color: '#FFFFFF' }}>ADDED ✓</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="p-4" style={{ backgroundColor: isSelected ? '#0A0A0A' : '#FFFFFF' }}>
-                          <div className="flex items-start justify-between gap-3">
-                            <h3 style={{ ...DISPLAY, fontSize: '1.75rem', color: isSelected ? '#FFFFFF' : '#0A0A0A' }}>
-                              {venue.name}
-                            </h3>
-                            <div
-                              className="flex-shrink-0 w-8 h-8 border-2 flex items-center justify-center"
-                              style={{
-                                ...DISPLAY,
-                                fontSize: '1rem',
-                                borderColor: isSelected ? '#FFFFFF' : '#0A0A0A',
-                                color:       isSelected ? '#FFFFFF' : '#0A0A0A',
-                                backgroundColor: isSelected ? '#0A0A0A' : '#FFFFFF',
-                              }}
-                            >
-                              {isSelected ? '✓' : '+'}
-                            </div>
-                          </div>
-                          {venue.pro_tip && (
-                            <p
-                              className="text-xs mt-3 leading-relaxed italic"
-                              style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontWeight: 400, color: isSelected ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' }}
-                            >
-                              &ldquo;{venue.pro_tip}&rdquo;
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {venues.map(venue => (
+                    <VenueCard
+                      key={venue.id}
+                      venue={venue}
+                      isSelected={!!selected.find(v => v.id === venue.id)}
+                      onToggle={() => toggleVenue(venue)}
+                    />
+                  ))}
                 </div>
               </>
             )}
