@@ -12,10 +12,10 @@ const supabase = createClient(
 const STEP = { WHERE: 1, WHAT: 2, WHO: 3, RESULTS: 4 };
 
 const STEP_BG = {
-  [STEP.WHERE]:   '#f4f1ea',
-  [STEP.WHAT]:    '#e2e7e1',
-  [STEP.WHO]:     '#f2e6df',
-  [STEP.RESULTS]: '#f4f1ea',
+  [STEP.WHERE]:   '#F5EBE6',
+  [STEP.WHAT]:    '#0029FF',
+  [STEP.WHO]:     '#FF4800',
+  [STEP.RESULTS]: '#F5EBE6',
 };
 
 const WHERE_OPTIONS = [
