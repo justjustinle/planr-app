@@ -18,7 +18,6 @@ const STEP_THEME = {
   [STEP.RESULTS]: { bg: '#F8E98A', fg: '#0A0A0A' },
 };
 
-// Shared style for all display headings
 const DISPLAY = {
   fontFamily: '"Barlow Condensed", "Arial Black", Impact, sans-serif',
   fontWeight: 900,
@@ -27,7 +26,6 @@ const DISPLAY = {
   textTransform: 'uppercase',
 };
 
-// Shared style for all metadata / labels
 const META = {
   fontFamily: 'Barlow, system-ui, sans-serif',
   fontWeight: 400,
@@ -50,11 +48,11 @@ const WHAT_OPTIONS = [
 ];
 
 const WHO_OPTIONS = [
-  { value: 'romantic', label: 'Romantic', sublabel: 'Date night' },
-  { value: 'squad',    label: 'Squad',    sublabel: 'Group energy' },
-  { value: 'fancy',    label: 'Fancy',    sublabel: 'Special occasion' },
-  { value: 'playful',  label: 'Playful',  sublabel: 'Fun & silly' },
-  { value: 'lowkey',   label: 'Lowkey',   sublabel: 'Chill & easy' },
+  { value: 'romantic',    label: 'Romantic',    sublabel: 'intimate rooms & dim lighting'  },
+  { value: 'squad',       label: 'Squad',       sublabel: 'group tables & sharing plates'  },
+  { value: 'celebration', label: 'Celebration', sublabel: 'special occasions & milestones' },
+  { value: 'buzzy',       label: 'Buzzy',       sublabel: 'high energy & loud rooms'       },
+  { value: 'lowkey',      label: 'Lowkey',      sublabel: 'chill spots & effortless food'  },
 ];
 
 export default function WizardContainer() {
@@ -172,7 +170,6 @@ export default function WizardContainer() {
       {/* ── CONTENT ── */}
       <div className="max-w-md mx-auto px-5 pt-8">
 
-        {/* Back button at TOP only on step 1 / results */}
         {step === STEP.RESULTS && (
           <button
             onClick={back}
@@ -269,7 +266,6 @@ export default function WizardContainer() {
               </div>
             ) : (
               <>
-                {/* Results header */}
                 <div className="border-b-2 border-black pb-5 mb-6">
                   <div className="flex gap-2 flex-wrap mb-3">
                     {[neighborhood, activityType, !fuzzy && energyTag].filter(Boolean).map(tag => (
@@ -290,9 +286,8 @@ export default function WizardContainer() {
                   </p>
                 </div>
 
-                {/* Fuzzy banner */}
                 {fuzzy && fuzzyMeta && (
-                  <div className="border-2 border-black bg-white p-4 mb-6" style={{ boxShadow: '4px 4px 0 #0A0A0A' }}>
+                  <div className="border-2 border-black bg-white p-4 mb-6" style={{ boxShadow: '5px 5px 0 #0A0A0A' }}>
                     <p className="mb-1" style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.45)' }}>Heads up</p>
                     <p className="text-sm font-semibold leading-snug text-black">
                       Nothing fits &ldquo;<span style={DISPLAY}>{fuzzyMeta.requested}</span>&rdquo; right now — showing you the next best thing.
@@ -300,7 +295,6 @@ export default function WizardContainer() {
                   </div>
                 )}
 
-                {/* Empty */}
                 {venues.length === 0 && (
                   <div className="border-2 border-black bg-white p-10 text-center">
                     <p style={{ ...DISPLAY, fontSize: '2.5rem', color: '#0A0A0A' }} className="mb-2">DEAD END.</p>
@@ -308,7 +302,6 @@ export default function WizardContainer() {
                   </div>
                 )}
 
-                {/* Venue cards */}
                 <div className="flex flex-col gap-5">
                   {venues.map(venue => {
                     const isSelected = !!selected.find(v => v.id === venue.id);
@@ -318,11 +311,10 @@ export default function WizardContainer() {
                         onClick={() => toggleVenue(venue)}
                         className="border-2 border-black cursor-pointer overflow-hidden bg-white"
                         style={isSelected
-                          ? { boxShadow: 'none', transform: 'translate(6px, 6px)' }
-                          : { boxShadow: '6px 6px 0px 0px rgba(0,0,0,1)' }
+                          ? { boxShadow: 'none', transform: 'translate(5px, 5px)' }
+                          : { boxShadow: '5px 5px 0px 0px rgba(0,0,0,1)' }
                         }
                       >
-                        {/* 4:3 image */}
                         <div className="relative w-full border-b-2 border-black" style={{ aspectRatio: '4/3' }}>
                           {venue.hero_image_url ? (
                             <img src={venue.hero_image_url} alt={venue.name} className="w-full h-full object-cover" />
@@ -346,7 +338,6 @@ export default function WizardContainer() {
                           )}
                         </div>
 
-                        {/* Info block */}
                         <div className="p-4" style={{ backgroundColor: isSelected ? '#0A0A0A' : '#FFFFFF' }}>
                           <div className="flex items-start justify-between gap-3">
                             <h3 style={{ ...DISPLAY, fontSize: '1.75rem', color: isSelected ? '#FFFFFF' : '#0A0A0A' }}>

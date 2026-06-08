@@ -7,40 +7,45 @@ export default function SelectionCard({ label, sublabel, selected, onClick, acce
       style={selected
         ? {
             backgroundColor: '#0A0A0A',
-            color: accentColor,
+            color: '#FFFFFF',
             borderColor: '#0A0A0A',
             boxShadow: 'none',
-            transform: 'translate(6px, 6px)',
+            transform: 'translate(5px, 5px)',
           }
         : {
             backgroundColor: '#FFFFFF',
             color: '#0A0A0A',
             borderColor: '#0A0A0A',
-            boxShadow: '6px 6px 0px 0px rgba(0,0,0,1)',
+            boxShadow: '5px 5px 0px 0px rgba(0,0,0,1)',
           }
       }
-      className="relative w-full text-left border-2 rounded-none p-5 transition-none"
+      className="relative w-full text-left border-2 rounded-none p-5 transition-none cursor-pointer"
     >
-      {/* Primary label — maximum weight, condensed, zero line-height */}
       <p
-        className="uppercase leading-none"
         style={{
           fontFamily: '"Barlow Condensed", "Arial Black", Impact, sans-serif',
           fontWeight: 900,
           letterSpacing: '-0.04em',
+          lineHeight: 0.85,
+          textTransform: 'uppercase',
           fontSize: '2rem',
+          margin: 0,
         }}
       >
         {label}
       </p>
-
-      {/* Sublabel — normal weight, normal tracking, small uppercase */}
       {sublabel && (
         <p
-          className="text-xs font-normal tracking-normal uppercase mt-2"
           style={{
             fontFamily: 'Barlow, system-ui, sans-serif',
-            color: selected ? `${accentColor}99` : 'rgba(0,0,0,0.4)',
+            fontWeight: 400,
+            letterSpacing: '0em',
+            fontSize: '0.75rem',
+            marginTop: '6px',
+            marginBottom: 0,
+            color: selected ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.55)',
+            textTransform: 'none',
+            fontStyle: 'italic',
           }}
         >
           {sublabel}

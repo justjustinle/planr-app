@@ -7,48 +7,54 @@ const supabase = createClient(
 );
 
 export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const neighborhood = searchParams.get('neighborhood');
-  const activity_type = searchParams.get('activity_type');
-  const energy_tag = searchParams.get('energy_tag');
+  try {
+    const { searchParams } = new URL(req.url);
+    const neighborhood = searchParams.get('neighborhood');
+    const activity_type = searchParams.get('activity_type');
+    const energy_tag = searchParams.get('energy_tag');
 
-  if (!neighborhood || !activity_type || !energy_tag) {
-    return NextResponse.json({ venues: [], error: 'Missing parameters' }, { status: 400 });
+    if (!neighborhood || !activity_type || !energy_tag) {
+      return NextResponse.json({ venues: [], error: 'Missing parameters' }, { status: 400 });
+    }
+
+    // Primary: exact 3-filter match
+    const { data: exact, error } = await supabase
+      .from('venues')
+      .select('*')
+      .eq('neighborhood', neighborhood)
+      .eq('activity_type', activity_type)
+      .eq('energy_tag', energy_tag);
+
+    if (error) {
+      return NextResponse.json({ venues: [], error: error.message }, { status: 500 });
+    }
+
+    if (exact.length > 0) {
+      return NextResponse.json({ venues: exact, fuzzy: false });
+    }
+
+    // Fuzzy fallback: drop energy_tag, keep neighborhood + activity_type
+    const { data: fallback, error: fallbackError } = await supabase
+      .from('venues')
+      .select('*')
+      .eq('neighborhood', neighborhood)
+      .eq('activity_type', activity_type);
+
+    if (fallbackError) {
+      return NextResponse.json({ venues: [], error: fallbackError.message }, { status: 500 });
+    }
+
+    const availableEnergies = [...new Set(fallback.map(v => v.energy_tag).filter(Boolean))];
+
+    return NextResponse.json({
+      venues: fallback || [],
+      fuzzy: true,
+      requestedEnergy: energy_tag,
+      availableEnergies,
+    });
+
+  } catch (err) {
+    console.error('Server Error:', err);
+    return NextResponse.json({ venues: [], error: 'Internal Server Error' }, { status: 500 });
   }
-
-  // Primary: exact 3-filter match
-  const { data: exact, error } = await supabase
-    .from('venues')
-    .select('*')
-    .eq('neighborhood', neighborhood)
-    .eq('activity_type', activity_type)
-    .eq('energy_tag', energy_tag);
-
-  if (error) {
-    return NextResponse.json({ venues: [], error: error.message }, { status: 500 });
-  }
-
-  if (exact.length > 0) {
-    return NextResponse.json({ venues: exact, fuzzy: false });
-  }
-
-  // Fuzzy fallback: drop energy_tag, keep neighborhood + activity_type
-  const { data: fallback, error: fallbackError } = await supabase
-    .from('venues')
-    .select('*')
-    .eq('neighborhood', neighborhood)
-    .eq('activity_type', activity_type);
-
-  if (fallbackError) {
-    return NextResponse.json({ venues: [], error: fallbackError.message }, { status: 500 });
-  }
-
-  const availableEnergies = [...new Set(fallback.map(v => v.energy_tag).filter(Boolean))];
-
-  return NextResponse.json({
-    venues: fallback,
-    fuzzy: true,
-    requestedEnergy: energy_tag,
-    availableEnergies,
-  });
 }

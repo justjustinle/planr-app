@@ -1,8 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    './app/**/*.{js,jsx}',
-    './components/**/*.{js,jsx}',
+    './app/**/*.{js,jsx,ts,tsx}',
+    './components/**/*.{js,jsx,ts,tsx}',
   ],
   theme: {
     extend: {
@@ -18,11 +18,11 @@ module.exports = {
         body:     ['Barlow', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        brutal:    '4px 4px 0px 0px #0A0A0A',
-        'brutal-sm': '2px 2px 0px 0px #0A0A0A',
-        'brutal-lg': '6px 6px 0px 0px #0A0A0A',
-        'brutal-orange': '4px 4px 0px 0px #FF5C00',
-        'brutal-cobalt': '4px 4px 0px 0px #0038FF',
+        brutal:           '4px 4px 0px 0px #0A0A0A',
+        'brutal-sm':      '2px 2px 0px 0px #0A0A0A',
+        'brutal-lg':      '6px 6px 0px 0px #0A0A0A',
+        'brutal-orange':  '4px 4px 0px 0px #FF5C00',
+        'brutal-cobalt':  '4px 4px 0px 0px #0038FF',
       },
       keyframes: {
         fadeSlideUp: {
