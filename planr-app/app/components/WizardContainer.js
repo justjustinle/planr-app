@@ -11,6 +11,13 @@ const supabase = createClient(
 
 const STEP = { WHERE: 1, WHAT: 2, WHO: 3, RESULTS: 4 };
 
+const STEP_BG = {
+  [STEP.WHERE]:   '#f4f1ea',
+  [STEP.WHAT]:    '#e2e7e1',
+  [STEP.WHO]:     '#f2e6df',
+  [STEP.RESULTS]: '#f4f1ea',
+};
+
 const WHERE_OPTIONS = [
   { value: 'central', label: 'Central' },
   { value: 'north',   label: 'North' },
@@ -20,17 +27,17 @@ const WHERE_OPTIONS = [
 ];
 
 const WHAT_OPTIONS = [
-  { value: 'eat',   label: 'Eat',   emoji: '🍽', sublabel: 'Restaurants & cafés',    bg: '#FF5C00', text: '#0A0A0A' },
-  { value: 'drink', label: 'Drink', emoji: '🍸', sublabel: 'Bars & cocktails',        bg: '#0038FF', text: '#FFFFFF' },
-  { value: 'play',  label: 'Play',  emoji: '🎮', sublabel: 'Activities & experiences', bg: '#0A3D2A', text: '#FFFFFF' },
+  { value: 'eat',   label: 'Eat',   sublabel: 'Restaurants & cafés' },
+  { value: 'drink', label: 'Drink', sublabel: 'Bars & cocktails' },
+  { value: 'play',  label: 'Play',  sublabel: 'Activities & experiences' },
 ];
 
 const WHO_OPTIONS = [
-  { value: 'romantic',    label: 'Romantic',    emoji: '💫', sublabel: 'Date night' },
-  { value: 'squad',       label: 'Squad',       emoji: '👥', sublabel: 'Group energy' },
-  { value: 'celebration', label: 'Celebration', emoji: '🎉', sublabel: 'Special occasion' },
-  { value: 'playful',     label: 'Playful',     emoji: '😄', sublabel: 'Fun & silly' },
-  { value: 'lowkey',      label: 'Lowkey',      emoji: '🌙', sublabel: 'Chill & easy' },
+  { value: 'romantic',    label: 'Romantic',    sublabel: 'Date night' },
+  { value: 'squad',       label: 'Squad',       sublabel: 'Group energy' },
+  { value: 'celebration', label: 'Celebration', sublabel: 'Special occasion' },
+  { value: 'playful',     label: 'Playful',     sublabel: 'Fun & silly' },
+  { value: 'lowkey',      label: 'Lowkey',      sublabel: 'Chill & easy' },
 ];
 
 export default function WizardContainer() {
@@ -102,43 +109,41 @@ export default function WizardContainer() {
     if (step === STEP.RESULTS) { setVenues([]); setSelected([]); setFuzzy(false); setFuzzyMeta(null); setStep(STEP.WHO); }
   };
 
-  const stepLabels = ['WHERE', 'WHAT', 'WHO'];
-
   return (
-    <div className="min-h-screen bg-white pb-32">
+    <div
+      className="min-h-screen pb-32"
+      style={{ backgroundColor: STEP_BG[step], transition: 'background-color 0.5s ease' }}
+    >
 
       {/* ── MASTHEAD ── */}
-      <header className="border-b-2 border-ink px-5 pt-8 pb-5">
+      <header className="border-b-2 border-black px-5 pt-8 pb-5">
         <div className="max-w-md mx-auto">
           <div className="flex items-end justify-between">
-            <h1 className="font-headline text-7xl leading-none tracking-tighter text-ink">
+            <h1 className="font-headline text-7xl leading-none tracking-tighter text-black">
               PLANR.
             </h1>
-            {/* Step counter */}
             {step < STEP.RESULTS && (
-              <div className="text-right mb-1">
-                <span className="font-headline text-4xl text-ink leading-none"
-                  style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  0{step}
-                </span>
-                <span className="font-headline text-lg text-gray-300 leading-none">/03</span>
-              </div>
+              <span className="font-headline text-2xl text-black/30 leading-none mb-1">
+                0{step}&thinsp;/&thinsp;03
+              </span>
             )}
           </div>
 
-          {/* Step tabs */}
+          {/* Step indicator strip */}
           {step < STEP.RESULTS && (
-            <div className="flex gap-0 mt-4 border-2 border-ink" style={{ width: 'fit-content' }}>
-              {stepLabels.map((label, i) => {
+            <div className="flex mt-5 border-2 border-black" style={{ width: 'fit-content' }}>
+              {['WHERE', 'WHAT', 'WHO'].map((label, i) => {
                 const s = i + 1;
-                const isActive = step === s;
-                const isDone = step > s;
                 return (
                   <div
                     key={label}
-                    className={`px-4 py-1.5 font-headline text-xs tracking-widest border-r-2 border-ink last:border-r-0 ${
-                      isActive ? 'bg-ink text-white' : isDone ? 'bg-[#FF5C00] text-ink' : 'bg-white text-gray-300'
-                    }`}
+                    style={step === s
+                      ? { backgroundColor: '#0A0A0A', color: '#FFFFFF' }
+                      : step > s
+                      ? { backgroundColor: '#0A0A0A', color: '#FFFFFF', opacity: 0.35 }
+                      : { backgroundColor: 'transparent', color: '#0A0A0A', opacity: 0.25 }
+                    }
+                    className="px-4 py-1.5 font-headline text-[10px] tracking-widest border-r-2 border-black last:border-r-0"
                   >
                     {label}
                   </div>
@@ -149,14 +154,14 @@ export default function WizardContainer() {
         </div>
       </header>
 
-      {/* ── CONTENT ── */}
-      <div className="max-w-md mx-auto px-5 pt-6">
+      {/* ── MAIN CONTENT ── */}
+      <div className="max-w-md mx-auto px-5 pt-7">
 
-        {/* Back */}
         {step > STEP.WHERE && (
           <button
             onClick={back}
-            className="mb-5 font-headline text-sm tracking-widest text-gray-400 hover:text-ink transition-none uppercase flex items-center gap-2"
+            className="mb-6 font-headline text-xs tracking-widest uppercase text-black/40 hover:text-black"
+            style={{ transition: 'none' }}
           >
             ← Back
           </button>
@@ -165,9 +170,10 @@ export default function WizardContainer() {
         {/* ── STEP 1: WHERE ── */}
         {step === STEP.WHERE && (
           <div className="animate-fade-in">
-            <p className="font-headline text-5xl tracking-tighter text-ink mb-6">
-              WHERE<br />IN LONDON?
-            </p>
+            <h2 className="font-headline text-5xl tracking-tighter text-black leading-none mb-1">
+              WHERE IN<br />LONDON?
+            </h2>
+            <p className="font-body text-xs text-black/40 tracking-widest uppercase mb-7">Select your neighbourhood</p>
             <div className="grid grid-cols-2 gap-3">
               {WHERE_OPTIONS.map((opt, i) => (
                 <div key={opt.value} className={i === 4 ? 'col-span-2' : ''}>
@@ -185,37 +191,20 @@ export default function WizardContainer() {
         {/* ── STEP 2: WHAT ── */}
         {step === STEP.WHAT && (
           <div className="animate-fade-in">
-            <p className="font-headline text-5xl tracking-tighter text-ink mb-6">
+            <h2 className="font-headline text-5xl tracking-tighter text-black leading-none mb-1">
               WHAT'S<br />THE PLAN?
-            </p>
+            </h2>
+            <p className="font-body text-xs text-black/40 tracking-widest uppercase mb-7">Choose an activity</p>
             <div className="flex flex-col gap-3">
-              {WHAT_OPTIONS.map(opt => {
-                const isSelected = activityType === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => pickActivity(opt.value)}
-                    style={isSelected
-                      ? { backgroundColor: opt.bg, color: opt.text, borderColor: opt.bg, boxShadow: 'none', transform: 'translate(4px,4px)' }
-                      : { backgroundColor: opt.bg, color: opt.text }
-                    }
-                    className={`
-                      w-full border-2 border-ink p-6 text-left transition-none
-                      ${!isSelected ? 'brutal-shadow hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none' : ''}
-                    `}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-headline text-4xl tracking-tighter leading-none uppercase">
-                          {opt.emoji} {opt.label}
-                        </p>
-                        <p className="font-body text-sm mt-2 opacity-70">{opt.sublabel}</p>
-                      </div>
-                      <span className="font-headline text-3xl opacity-40">→</span>
-                    </div>
-                  </button>
-                );
-              })}
+              {WHAT_OPTIONS.map(opt => (
+                <SelectionCard
+                  key={opt.value}
+                  label={opt.label}
+                  sublabel={opt.sublabel}
+                  selected={activityType === opt.value}
+                  onClick={() => pickActivity(opt.value)}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -223,14 +212,14 @@ export default function WizardContainer() {
         {/* ── STEP 3: WHO ── */}
         {step === STEP.WHO && (
           <div className="animate-fade-in">
-            <p className="font-headline text-5xl tracking-tighter text-ink mb-6">
+            <h2 className="font-headline text-5xl tracking-tighter text-black leading-none mb-1">
               WHAT'S THE<br />ENERGY?
-            </p>
+            </h2>
+            <p className="font-body text-xs text-black/40 tracking-widest uppercase mb-7">Set the vibe</p>
             <div className="grid grid-cols-2 gap-3">
               {WHO_OPTIONS.map((opt, i) => (
                 <div key={opt.value} className={i === 4 ? 'col-span-2' : ''}>
                   <SelectionCard
-                    emoji={opt.emoji}
                     label={opt.label}
                     sublabel={opt.sublabel}
                     selected={energyTag === opt.value}
@@ -246,42 +235,51 @@ export default function WizardContainer() {
         {step === STEP.RESULTS && (
           <div className="animate-fade-in">
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-32 gap-6">
-                {/* Brutalist loading — no spinner, just pulsing text */}
-                <p className="font-headline text-4xl tracking-tighter animate-pulse">FINDING<br />YOUR SPOT…</p>
+              <div className="pt-32 text-center">
+                <p className="font-headline text-5xl tracking-tighter text-black animate-pulse">
+                  FINDING<br />YOUR SPOT…
+                </p>
               </div>
             ) : (
               <>
-                {/* Results masthead */}
-                <div className="border-b-2 border-ink pb-4 mb-6">
-                  <div className="flex gap-2 flex-wrap mb-2">
+                {/* Results header */}
+                <div className="border-b-2 border-black pb-5 mb-6">
+                  <div className="flex gap-2 flex-wrap mb-3">
                     {[neighborhood, activityType, !fuzzy && energyTag].filter(Boolean).map(tag => (
-                      <span key={tag} className="font-headline text-xs tracking-widest uppercase border border-ink px-2 py-0.5">
+                      <span
+                        key={tag}
+                        className="font-headline text-[10px] tracking-widest uppercase border border-black px-2 py-0.5 bg-white text-black"
+                      >
                         {tag}
                       </span>
                     ))}
                   </div>
-                  <p className="font-headline text-5xl tracking-tighter text-ink leading-none">
+                  <p className="font-headline text-5xl tracking-tighter text-black leading-none">
                     {venues.length} SPOT{venues.length !== 1 ? 'S' : ''}
                   </p>
-                  <p className="font-body text-xs text-gray-500 mt-1">Tap a card to add to your group poll</p>
+                  <p className="font-body text-xs text-black/40 tracking-widest uppercase mt-1">
+                    Tap to add to your group poll
+                  </p>
                 </div>
 
-                {/* Fuzzy match banner */}
+                {/* Fuzzy banner */}
                 {fuzzy && fuzzyMeta && (
-                  <div className="border-2 border-ink bg-[#FF5C00] p-4 mb-6" style={{ boxShadow: '4px 4px 0 #0A0A0A' }}>
-                    <p className="font-headline text-xs tracking-widest uppercase mb-1">Heads up</p>
-                    <p className="font-body text-sm font-semibold leading-snug">
-                      Nothing fits &ldquo;<span className="uppercase font-black">{fuzzyMeta.requested}</span>&rdquo; here right now — showing you the next best thing.
+                  <div
+                    className="border-2 border-black bg-white p-4 mb-6"
+                    style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+                  >
+                    <p className="font-headline text-xs tracking-widest uppercase text-black/50 mb-1">Heads up</p>
+                    <p className="font-body text-sm font-semibold leading-snug text-black">
+                      Nothing fits &ldquo;<span className="uppercase font-black">{fuzzyMeta.requested}</span>&rdquo; right now — showing you the next best thing.
                     </p>
                   </div>
                 )}
 
-                {/* Empty state */}
+                {/* Empty */}
                 {venues.length === 0 && (
-                  <div className="border-2 border-ink p-10 text-center">
-                    <p className="font-headline text-5xl tracking-tighter mb-3">DEAD END.</p>
-                    <p className="font-body text-sm text-gray-500">No venues match this combo. Go back and try another.</p>
+                  <div className="border-2 border-black bg-white p-10 text-center">
+                    <p className="font-headline text-4xl tracking-tighter text-black mb-2">DEAD END.</p>
+                    <p className="font-body text-sm text-black/50">Try a different combination.</p>
                   </div>
                 )}
 
@@ -293,68 +291,70 @@ export default function WizardContainer() {
                       <div
                         key={venue.id}
                         onClick={() => toggleVenue(venue)}
+                        className="border-2 border-black cursor-pointer overflow-hidden bg-white"
                         style={isSelected
-                          ? { boxShadow: 'none', transform: 'translate(4px,4px)' }
-                          : { boxShadow: '4px 4px 0 #0A0A0A' }
+                          ? { boxShadow: 'none', transform: 'translate(4px, 4px)' }
+                          : { boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }
                         }
-                        className={`border-2 border-ink cursor-pointer transition-none overflow-hidden ${
-                          isSelected ? 'bg-ink' : 'bg-white hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-brutal-sm'
-                        }`}
                       >
-                        {/* 4:3 Image */}
-                        <div className="relative w-full border-b-2 border-ink" style={{ aspectRatio: '4/3' }}>
+                        {/* 4:3 image */}
+                        <div className="relative w-full border-b-2 border-black" style={{ aspectRatio: '4/3' }}>
                           {venue.hero_image_url ? (
-                            <img
-                              src={venue.hero_image_url}
-                              alt={venue.name}
-                              className="w-full h-full object-cover"
-                            />
+                            <img src={venue.hero_image_url} alt={venue.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full bg-cream flex items-center justify-center">
-                              <span className="font-headline text-2xl text-gray-300 tracking-tighter">NO IMAGE</span>
+                            <div className="w-full h-full bg-[#f4f1ea] flex items-center justify-center">
+                              <span className="font-headline text-xl tracking-tighter text-black/20 uppercase">No Image</span>
                             </div>
                           )}
 
-                          {/* Logistics badge */}
                           {venue.logistics_badge && (
-                            <div className="absolute top-3 left-3 bg-white border border-ink px-2 py-1">
-                              <span className="font-headline text-[10px] tracking-widest uppercase text-ink">
+                            <div className="absolute top-3 left-3 bg-white border border-black px-2 py-1">
+                              <span className="font-headline text-[10px] tracking-widest uppercase text-black">
                                 {venue.logistics_badge}
                               </span>
                             </div>
                           )}
 
-                          {/* Energy tag */}
-                          <div className="absolute top-3 right-3 bg-[#FF5C00] border border-ink px-2 py-1">
-                            <span className="font-headline text-[10px] tracking-widest uppercase text-ink">
+                          <div className="absolute top-3 right-3 bg-white border border-black px-2 py-1">
+                            <span className="font-headline text-[10px] tracking-widest uppercase text-black capitalize">
                               {venue.energy_tag}
                             </span>
                           </div>
 
-                          {/* Select state overlay */}
                           {isSelected && (
-                            <div className="absolute inset-0 bg-ink/60 flex items-center justify-center">
-                              <span className="font-headline text-5xl text-white tracking-tighter">ADDED ✓</span>
+                            <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                              <span className="font-headline text-4xl text-white tracking-tighter">ADDED ✓</span>
                             </div>
                           )}
                         </div>
 
-                        {/* Info block */}
-                        <div className={`p-4 ${isSelected ? 'bg-ink' : 'bg-white'}`}>
+                        {/* Info */}
+                        <div
+                          className="p-4"
+                          style={{ backgroundColor: isSelected ? '#0A0A0A' : '#FFFFFF' }}
+                        >
                           <div className="flex items-start justify-between gap-3">
-                            <h3 className={`font-headline text-2xl tracking-tighter leading-none uppercase ${isSelected ? 'text-white' : 'text-ink'}`}>
+                            <h3
+                              className="font-headline text-2xl tracking-tighter leading-none uppercase"
+                              style={{ color: isSelected ? '#FFFFFF' : '#0A0A0A' }}
+                            >
                               {venue.name}
                             </h3>
-                            <div className={`flex-shrink-0 w-8 h-8 border-2 flex items-center justify-center font-headline text-lg ${
-                              isSelected
-                                ? 'border-white text-white'
-                                : 'border-ink text-ink bg-white'
-                            }`}>
+                            <div
+                              className="flex-shrink-0 w-8 h-8 border-2 flex items-center justify-center font-headline text-base"
+                              style={isSelected
+                                ? { borderColor: '#FFFFFF', color: '#FFFFFF', backgroundColor: '#0A0A0A' }
+                                : { borderColor: '#0A0A0A', color: '#0A0A0A', backgroundColor: '#FFFFFF' }
+                              }
+                            >
                               {isSelected ? '✓' : '+'}
                             </div>
                           </div>
                           {venue.pro_tip && (
-                            <p className={`font-body text-xs mt-3 leading-relaxed italic ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
+                            <p
+                              className="font-body text-xs mt-3 leading-relaxed italic"
+                              style={{ color: isSelected ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)' }}
+                            >
                               &ldquo;{venue.pro_tip}&rdquo;
                             </p>
                           )}
@@ -369,21 +369,19 @@ export default function WizardContainer() {
         )}
       </div>
 
-      {/* ── FIXED POLL BAR ── */}
+      {/* ── POLL BAR ── */}
       {selected.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-ink border-t-2 border-ink z-50">
-          <div className="max-w-md mx-auto px-5 py-4 flex items-center justify-between gap-4">
+        <div className="fixed bottom-0 left-0 right-0 border-t-2 border-black bg-black z-50">
+          <div className="max-w-md mx-auto px-5 py-4 flex items-center justify-between">
             <div>
-              <span className="font-headline text-3xl text-white tracking-tighter leading-none block">
-                {selected.length}/5
-              </span>
-              <span className="font-body text-[10px] text-gray-400 uppercase tracking-widest">Selected</span>
+              <span className="font-headline text-3xl text-white tracking-tighter leading-none block">{selected.length}/5</span>
+              <span className="font-body text-[10px] text-white/40 tracking-widest uppercase">Selected</span>
             </div>
             <button
               onClick={createPoll}
               disabled={pollCreating}
-              style={{ boxShadow: '3px 3px 0 #FF5C00' }}
-              className="bg-white text-ink border-2 border-white font-headline text-sm tracking-widest uppercase px-6 py-3 hover:bg-[#FF5C00] hover:border-[#FF5C00] transition-none disabled:opacity-50"
+              className="bg-white text-black border-2 border-white font-headline text-sm tracking-widest uppercase px-6 py-3 disabled:opacity-50"
+              style={{ boxShadow: '3px 3px 0 rgba(255,255,255,0.2)', transition: 'none' }}
             >
               {pollCreating ? 'CREATING…' : 'CREATE POLL →'}
             </button>
