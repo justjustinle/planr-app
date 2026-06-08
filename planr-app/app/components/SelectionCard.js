@@ -1,39 +1,59 @@
 'use client';
 
-export default function SelectionCard({ emoji, label, sublabel, selected, onClick, size = 'md' }) {
+export default function SelectionCard({ emoji, label, sublabel, selected, onClick, accent }) {
+  // accent: optional bg color when selected (e.g. 'orange', 'cobalt', 'forest')
+  const accentMap = {
+    orange: { bg: '#FF5C00', text: '#0A0A0A', border: '#FF5C00' },
+    cobalt: { bg: '#0038FF', text: '#FFFFFF',  border: '#0038FF' },
+    forest: { bg: '#0A3D2A', text: '#FFFFFF',  border: '#0A3D2A' },
+  };
+  const ac = accent ? accentMap[accent] : null;
+
   return (
     <button
       onClick={onClick}
+      style={selected && ac ? {
+        backgroundColor: ac.bg,
+        color: ac.text,
+        borderColor: ac.border,
+        boxShadow: 'none',
+        transform: 'translate(4px, 4px)',
+      } : selected ? {
+        backgroundColor: '#0A0A0A',
+        color: '#FFFFFF',
+        borderColor: '#0A0A0A',
+        boxShadow: 'none',
+        transform: 'translate(4px, 4px)',
+      } : {}}
       className={`
-        relative w-full text-left rounded-3xl border-2 transition-all duration-200 active:scale-95
-        ${size === 'lg' ? 'p-5' : 'p-4'}
+        relative w-full text-left border-2 border-ink transition-none
+        p-5 group
         ${selected
-          ? 'border-[#FAC898] bg-[#FAC898] text-gray-900 shadow-lg'
-          : 'border-gray-100 bg-white text-gray-800 hover:border-[#FAC898] hover:bg-orange-50'
+          ? ''
+          : 'bg-white brutal-shadow hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none'
         }
       `}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         {emoji && (
-          <span className={`leading-none ${size === 'lg' ? 'text-3xl' : 'text-2xl'}`}>{emoji}</span>
+          <span className="text-2xl leading-none flex-shrink-0">{emoji}</span>
         )}
-        <div>
-          <p className={`font-black tracking-tight leading-none ${size === 'lg' ? 'text-lg' : 'text-base'}`}>
+        <div className="flex-1 min-w-0">
+          <p className="font-headline text-2xl leading-none tracking-tighter uppercase">
             {label}
           </p>
           {sublabel && (
-            <p className={`text-xs mt-1 font-medium ${selected ? 'text-gray-600' : 'text-gray-400'}`}>
+            <p className={`font-body text-xs mt-1.5 font-medium leading-snug ${
+              selected ? 'opacity-70' : 'text-gray-500'
+            }`}>
               {sublabel}
             </p>
           )}
         </div>
+        {selected && (
+          <span className="font-headline text-lg leading-none flex-shrink-0">✕</span>
+        )}
       </div>
-
-      {selected && (
-        <div className="absolute top-3 right-3 w-5 h-5 bg-white rounded-full flex items-center justify-center">
-          <span className="text-[10px] font-black text-gray-900">✓</span>
-        </div>
-      )}
     </button>
   );
 }

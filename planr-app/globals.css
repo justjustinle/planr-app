@@ -1,3 +1,51 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --orange: #FF5C00;
+    --blue:   #0038FF;
+    --green:  #0A3D2A;
+    --black:  #0A0A0A;
+    --cream:  #F5F0E8;
+  }
+
+  body {
+    font-family: 'Barlow', system-ui, sans-serif;
+    background: #FFFFFF;
+    color: #0A0A0A;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, .headline {
+    font-family: 'Barlow Condensed', 'Arial Black', Impact, sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .brutal-shadow {
+    box-shadow: 4px 4px 0px 0px #0A0A0A;
+  }
+  .brutal-shadow-sm {
+    box-shadow: 2px 2px 0px 0px #0A0A0A;
+  }
+  .brutal-shadow-lg {
+    box-shadow: 6px 6px 0px 0px #0A0A0A;
+  }
+  .brutal-press {
+    transform: translate(4px, 4px);
+    box-shadow: none;
+  }
+
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in {
+    animation: fadeSlideUp 0.2s ease-out forwards;
+  }
+}
