@@ -134,7 +134,7 @@ export default function WizardContainer() {
       <header className="border-b-2 border-black px-5 pt-8 pb-5">
         <div className="max-w-md mx-auto">
           <div className="flex items-end justify-between">
-            <h1 style={{ ...DISPLAY, fontSize: '4.5rem', color: fg }}>PLANR.</h1>
+            <h1 style={{ ...DISPLAY, fontSize: '6rem', color: fg }}>PLANR.</h1>
             {step < STEP.RESULTS && (
               <span style={{ ...DISPLAY, fontSize: '1.5rem', color: fg, opacity: 0.35 }}>
                 0{step}&thinsp;/&thinsp;03

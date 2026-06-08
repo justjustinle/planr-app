@@ -28,7 +28,7 @@ export default function SelectionCard({ label, sublabel, selected, onClick, acce
           fontFamily: '"Barlow Condensed", "Arial Black", Impact, sans-serif',
           fontWeight: 900,
           letterSpacing: '-0.04em',
-          fontSize: '1.5rem',
+          fontSize: '2rem',
         }}
       >
         {label}
