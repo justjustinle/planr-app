@@ -188,10 +188,10 @@ export default function WizardContainer() {
         {/* ── STEP 1: WHERE ── */}
         {step === STEP.WHERE && (
           <div className="animate-fade-in">
-            <h2 className="font-headline text-5xl tracking-tighter leading-none mb-1" style={{ color: fg }}>
+            <h2 className="font-headline text-7xl tracking-tight leading-tight mb-3" style={{ color: fg, fontWeight: 800 }}>
               WHERE IN<br />LONDON?
             </h2>
-            <p className="font-body text-xs tracking-widest uppercase mb-7" style={{ color: fg, opacity: 0.5 }}>
+            <p className="font-body text-xs tracking-widest uppercase mb-10" style={{ color: fg, opacity: 0.5 }}>
               Select your neighbourhood
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -213,12 +213,12 @@ export default function WizardContainer() {
         {step === STEP.WHAT && (
           <div className="animate-fade-in">
             <h2
-              className="font-headline text-5xl tracking-tighter leading-none mb-1"
-              style={{ color: fg, filter: 'drop-shadow(2px 2px 0 rgba(0,0,0,1))' }}
+              className="font-headline text-7xl tracking-tight leading-tight mb-3"
+              style={{ color: fg, fontWeight: 800 }}
             >
               WHAT'S<br />THE PLAN?
             </h2>
-            <p className="font-body text-xs tracking-widest uppercase mb-7" style={{ color: fg, opacity: 0.6 }}>
+            <p className="font-body text-xs tracking-widest uppercase mb-10" style={{ color: fg, opacity: 0.6 }}>
               Choose an activity
             </p>
             <div className="flex flex-col gap-3">
@@ -240,12 +240,12 @@ export default function WizardContainer() {
         {step === STEP.WHO && (
           <div className="animate-fade-in">
             <h2
-              className="font-headline text-5xl tracking-tighter leading-none mb-1"
-              style={{ color: fg, filter: 'drop-shadow(2px 2px 0 rgba(0,0,0,1))' }}
+              className="font-headline text-7xl tracking-tight leading-tight mb-3"
+              style={{ color: fg, fontWeight: 800 }}
             >
               WHAT'S THE<br />ENERGY?
             </h2>
-            <p className="font-body text-xs tracking-widest uppercase mb-7" style={{ color: fg, opacity: 0.6 }}>
+            <p className="font-body text-xs tracking-widest uppercase mb-10" style={{ color: fg, opacity: 0.6 }}>
               Set the vibe
             </p>
             <div className="grid grid-cols-2 gap-3">
