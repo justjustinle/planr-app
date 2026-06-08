@@ -1,7 +1,5 @@
 'use client';
 
-// accentColor: the background color of the current step screen.
-// When selected, the card goes pitch-black with text in the accent color.
 export default function SelectionCard({ label, sublabel, selected, onClick, accentColor = '#0A0A0A' }) {
   return (
     <button
@@ -23,13 +21,27 @@ export default function SelectionCard({ label, sublabel, selected, onClick, acce
       }
       className="relative w-full text-left border-2 rounded-none p-5 transition-none"
     >
-      <p className="font-headline text-xl tracking-tighter uppercase font-black leading-none">
+      {/* Primary label — maximum weight, condensed, zero line-height */}
+      <p
+        className="uppercase leading-none"
+        style={{
+          fontFamily: '"Barlow Condensed", "Arial Black", Impact, sans-serif',
+          fontWeight: 900,
+          letterSpacing: '-0.04em',
+          fontSize: '1.5rem',
+        }}
+      >
         {label}
       </p>
+
+      {/* Sublabel — normal weight, normal tracking, small uppercase */}
       {sublabel && (
         <p
-          className="font-body text-xs mt-2 font-medium tracking-wide"
-          style={{ color: selected ? `${accentColor}99` : 'rgba(0,0,0,0.45)' }}
+          className="text-xs font-normal tracking-normal uppercase mt-2"
+          style={{
+            fontFamily: 'Barlow, system-ui, sans-serif',
+            color: selected ? `${accentColor}99` : 'rgba(0,0,0,0.4)',
+          }}
         >
           {sublabel}
         </p>

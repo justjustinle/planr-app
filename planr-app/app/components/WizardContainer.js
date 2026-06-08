@@ -11,12 +11,28 @@ const supabase = createClient(
 
 const STEP = { WHERE: 1, WHAT: 2, WHO: 3, RESULTS: 4 };
 
-// Per-step: background + foreground text color for titles/UI chrome
 const STEP_THEME = {
-  [STEP.WHERE]:   { bg: '#F8E98A', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
-  [STEP.WHAT]:    { bg: '#7188F0', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
-  [STEP.WHO]:     { bg: '#F8976F', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
-  [STEP.RESULTS]: { bg: '#F8E98A', fg: '#0A0A0A', shadow: 'rgba(0,0,0,1)' },
+  [STEP.WHERE]:   { bg: '#F8E98A', fg: '#0A0A0A' },
+  [STEP.WHAT]:    { bg: '#7188F0', fg: '#0A0A0A' },
+  [STEP.WHO]:     { bg: '#F8976F', fg: '#0A0A0A' },
+  [STEP.RESULTS]: { bg: '#F8E98A', fg: '#0A0A0A' },
+};
+
+// Shared style for all display headings
+const DISPLAY = {
+  fontFamily: '"Barlow Condensed", "Arial Black", Impact, sans-serif',
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+  lineHeight: 0.85,
+  textTransform: 'uppercase',
+};
+
+// Shared style for all metadata / labels
+const META = {
+  fontFamily: 'Barlow, system-ui, sans-serif',
+  fontWeight: 400,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
 };
 
 const WHERE_OPTIONS = [
@@ -55,33 +71,21 @@ export default function WizardContainer() {
   const [pollCreating, setPollCreating] = useState(false);
 
   const { bg, fg } = STEP_THEME[step];
-  const isLight = true; // all pastel steps use dark text
 
-  const pickNeighborhood = (value) => {
-    setNeighborhood(value);
-    setTimeout(() => setStep(STEP.WHAT), 160);
-  };
-
-  const pickActivity = (value) => {
-    setActivityType(value);
-    setTimeout(() => setStep(STEP.WHO), 160);
-  };
+  const pickNeighborhood = (value) => { setNeighborhood(value); setTimeout(() => setStep(STEP.WHAT), 160); };
+  const pickActivity     = (value) => { setActivityType(value); setTimeout(() => setStep(STEP.WHO),  160); };
 
   const pickEnergy = async (value) => {
     setEnergyTag(value);
     setLoading(true);
     setStep(STEP.RESULTS);
     try {
-      const res = await fetch(
-        `/api/venues?neighborhood=${neighborhood}&activity_type=${activityType}&energy_tag=${value}`
-      );
+      const res  = await fetch(`/api/venues?neighborhood=${neighborhood}&activity_type=${activityType}&energy_tag=${value}`);
       const data = await res.json();
       setVenues(data.venues || []);
       setFuzzy(!!data.fuzzy);
       setFuzzyMeta(data.fuzzy ? { requested: value, available: data.availableEnergies || [] } : null);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
     setLoading(false);
   };
 
@@ -97,11 +101,8 @@ export default function WizardContainer() {
     if (!selected.length || pollCreating) return;
     setPollCreating(true);
     const { data, error } = await supabase.from('polls').insert([{
-      restaurants: selected,
-      location: neighborhood,
-      votes: {},
-      is_closed: false,
-      activity_type: activityType,
+      restaurants: selected, location: neighborhood,
+      votes: {}, is_closed: false, activity_type: activityType,
     }]).select();
     if (!error) router.push(`/poll/${data[0].id}`);
     else setPollCreating(false);
@@ -113,6 +114,16 @@ export default function WizardContainer() {
     if (step === STEP.RESULTS) { setVenues([]); setSelected([]); setFuzzy(false); setFuzzyMeta(null); setStep(STEP.WHO); }
   };
 
+  const BackButton = () => (
+    <button
+      onClick={back}
+      className="mt-6 text-xs uppercase"
+      style={{ ...META, color: fg, opacity: 0.45, transition: 'none' }}
+    >
+      ← Back
+    </button>
+  );
+
   return (
     <div
       className="min-h-screen pb-32"
@@ -120,48 +131,34 @@ export default function WizardContainer() {
     >
 
       {/* ── MASTHEAD ── */}
-      <header
-        className="border-b-2 border-black px-5 pt-8 pb-5"
-        style={{ borderColor: isLight ? '#0A0A0A' : '#0A0A0A' }}
-      >
+      <header className="border-b-2 border-black px-5 pt-8 pb-5">
         <div className="max-w-md mx-auto">
           <div className="flex items-end justify-between">
-            <h1
-              className="font-headline text-7xl leading-none tracking-tighter"
-              style={{
-                color: fg,
-                filter: isLight ? 'none' : 'drop-shadow(2px 2px 0 rgba(0,0,0,1))',
-              }}
-            >
-              PLANR.
-            </h1>
+            <h1 style={{ ...DISPLAY, fontSize: '4.5rem', color: fg }}>PLANR.</h1>
             {step < STEP.RESULTS && (
-              <span
-                className="font-headline text-2xl leading-none mb-1"
-                style={{ color: fg, opacity: 0.4 }}
-              >
+              <span style={{ ...DISPLAY, fontSize: '1.5rem', color: fg, opacity: 0.35 }}>
                 0{step}&thinsp;/&thinsp;03
               </span>
             )}
           </div>
 
-          {/* Step tab strip */}
           {step < STEP.RESULTS && (
             <div className="flex mt-5 border-2 border-black" style={{ width: 'fit-content' }}>
               {['WHERE', 'WHAT', 'WHO'].map((label, i) => {
                 const s = i + 1;
-                const isActive = step === s;
-                const isDone   = step > s;
                 return (
                   <div
                     key={label}
-                    className="px-4 py-1.5 font-headline text-[10px] tracking-widest border-r-2 border-black last:border-r-0"
-                    style={isActive
-                      ? { backgroundColor: '#0A0A0A', color: bg }
-                      : isDone
-                      ? { backgroundColor: '#0A0A0A', color: bg, opacity: 0.4 }
-                      : { backgroundColor: 'transparent', color: fg, opacity: 0.3 }
-                    }
+                    className="px-4 py-1.5 border-r-2 border-black last:border-r-0"
+                    style={{
+                      ...META,
+                      fontSize: '0.6rem',
+                      ...(step === s
+                        ? { backgroundColor: '#0A0A0A', color: bg }
+                        : step > s
+                        ? { backgroundColor: '#0A0A0A', color: bg, opacity: 0.35 }
+                        : { backgroundColor: 'transparent', color: fg, opacity: 0.25 }),
+                    }}
                   >
                     {label}
                   </div>
@@ -173,13 +170,14 @@ export default function WizardContainer() {
       </header>
 
       {/* ── CONTENT ── */}
-      <div className="max-w-md mx-auto px-5 pt-7">
+      <div className="max-w-md mx-auto px-5 pt-8">
 
-        {step > STEP.WHERE && (
+        {/* Back button at TOP only on step 1 / results */}
+        {step === STEP.RESULTS && (
           <button
             onClick={back}
-            className="mb-6 font-headline text-xs tracking-widest uppercase"
-            style={{ color: fg, opacity: 0.5, transition: 'none' }}
+            className="mb-6 text-xs uppercase"
+            style={{ ...META, color: fg, opacity: 0.45, transition: 'none' }}
           >
             ← Back
           </button>
@@ -187,11 +185,11 @@ export default function WizardContainer() {
 
         {/* ── STEP 1: WHERE ── */}
         {step === STEP.WHERE && (
-          <div className="animate-fade-in">
-            <h2 className="font-headline text-7xl tracking-tight leading-tight mb-3" style={{ color: fg, fontWeight: 800 }}>
+          <div className="animate-fade-in flex flex-col">
+            <h2 style={{ ...DISPLAY, fontSize: '5rem', color: fg }} className="mb-4">
               WHERE IN<br />LONDON?
             </h2>
-            <p className="font-body text-xs tracking-widest uppercase mb-10" style={{ color: fg, opacity: 0.5 }}>
+            <p className="text-xs mb-10" style={{ ...META, color: fg, opacity: 0.5 }}>
               Select your neighbourhood
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -211,14 +209,11 @@ export default function WizardContainer() {
 
         {/* ── STEP 2: WHAT ── */}
         {step === STEP.WHAT && (
-          <div className="animate-fade-in">
-            <h2
-              className="font-headline text-7xl tracking-tight leading-tight mb-3"
-              style={{ color: fg, fontWeight: 800 }}
-            >
+          <div className="animate-fade-in flex flex-col">
+            <h2 style={{ ...DISPLAY, fontSize: '5rem', color: fg }} className="mb-4">
               WHAT'S<br />THE PLAN?
             </h2>
-            <p className="font-body text-xs tracking-widest uppercase mb-10" style={{ color: fg, opacity: 0.6 }}>
+            <p className="text-xs mb-10" style={{ ...META, color: fg, opacity: 0.5 }}>
               Choose an activity
             </p>
             <div className="flex flex-col gap-3">
@@ -233,19 +228,17 @@ export default function WizardContainer() {
                 />
               ))}
             </div>
+            <BackButton />
           </div>
         )}
 
         {/* ── STEP 3: WHO ── */}
         {step === STEP.WHO && (
-          <div className="animate-fade-in">
-            <h2
-              className="font-headline text-7xl tracking-tight leading-tight mb-3"
-              style={{ color: fg, fontWeight: 800 }}
-            >
+          <div className="animate-fade-in flex flex-col">
+            <h2 style={{ ...DISPLAY, fontSize: '5rem', color: fg }} className="mb-4">
               WHAT'S THE<br />ENERGY?
             </h2>
-            <p className="font-body text-xs tracking-widest uppercase mb-10" style={{ color: fg, opacity: 0.6 }}>
+            <p className="text-xs mb-10" style={{ ...META, color: fg, opacity: 0.5 }}>
               Set the vibe
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -261,6 +254,7 @@ export default function WizardContainer() {
                 </div>
               ))}
             </div>
+            <BackButton />
           </div>
         )}
 
@@ -269,10 +263,7 @@ export default function WizardContainer() {
           <div className="animate-fade-in">
             {loading ? (
               <div className="pt-32 text-center">
-                <p
-                  className="font-headline text-5xl tracking-tighter animate-pulse"
-                  style={{ color: fg }}
-                >
+                <p style={{ ...DISPLAY, fontSize: '3rem', color: fg }} className="animate-pulse">
                   FINDING<br />YOUR SPOT…
                 </p>
               </div>
@@ -284,29 +275,27 @@ export default function WizardContainer() {
                     {[neighborhood, activityType, !fuzzy && energyTag].filter(Boolean).map(tag => (
                       <span
                         key={tag}
-                        className="font-headline text-[10px] tracking-widest uppercase border border-black px-2 py-0.5 bg-white text-black"
+                        className="border border-black px-2 py-0.5 bg-white text-black"
+                        style={{ ...META, fontSize: '0.6rem' }}
                       >
                         {tag}
                       </span>
                     ))}
                   </div>
-                  <p className="font-headline text-5xl tracking-tighter text-black leading-none">
+                  <p style={{ ...DISPLAY, fontSize: '3.5rem', color: '#0A0A0A' }}>
                     {venues.length} SPOT{venues.length !== 1 ? 'S' : ''}
                   </p>
-                  <p className="font-body text-xs text-black/40 tracking-widest uppercase mt-1">
+                  <p className="text-xs mt-2" style={{ ...META, color: 'rgba(0,0,0,0.4)' }}>
                     Tap to add to your group poll
                   </p>
                 </div>
 
                 {/* Fuzzy banner */}
                 {fuzzy && fuzzyMeta && (
-                  <div
-                    className="border-2 border-black bg-white p-4 mb-6"
-                    style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
-                  >
-                    <p className="font-headline text-xs tracking-widest uppercase text-black/50 mb-1">Heads up</p>
-                    <p className="font-body text-sm font-semibold leading-snug text-black">
-                      Nothing fits &ldquo;<span className="uppercase font-black">{fuzzyMeta.requested}</span>&rdquo; right now — showing you the next best thing.
+                  <div className="border-2 border-black bg-white p-4 mb-6" style={{ boxShadow: '4px 4px 0 #0A0A0A' }}>
+                    <p className="mb-1" style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.45)' }}>Heads up</p>
+                    <p className="text-sm font-semibold leading-snug text-black">
+                      Nothing fits &ldquo;<span style={DISPLAY}>{fuzzyMeta.requested}</span>&rdquo; right now — showing you the next best thing.
                     </p>
                   </div>
                 )}
@@ -314,13 +303,13 @@ export default function WizardContainer() {
                 {/* Empty */}
                 {venues.length === 0 && (
                   <div className="border-2 border-black bg-white p-10 text-center">
-                    <p className="font-headline text-4xl tracking-tighter text-black mb-2">DEAD END.</p>
-                    <p className="font-body text-sm text-black/50">Try a different combination.</p>
+                    <p style={{ ...DISPLAY, fontSize: '2.5rem', color: '#0A0A0A' }} className="mb-2">DEAD END.</p>
+                    <p className="text-sm" style={{ ...META, color: 'rgba(0,0,0,0.45)', textTransform: 'none' }}>Try a different combination.</p>
                   </div>
                 )}
 
                 {/* Venue cards */}
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-5">
                   {venues.map(venue => {
                     const isSelected = !!selected.find(v => v.id === venue.id);
                     return (
@@ -338,48 +327,48 @@ export default function WizardContainer() {
                           {venue.hero_image_url ? (
                             <img src={venue.hero_image_url} alt={venue.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full bg-[#FCE22A] flex items-center justify-center">
-                              <span className="font-headline text-xl tracking-tighter text-black/30 uppercase">No Image</span>
+                            <div className="w-full h-full bg-[#F8E98A] flex items-center justify-center">
+                              <span style={{ ...DISPLAY, fontSize: '1.25rem', color: 'rgba(0,0,0,0.25)' }}>No Image</span>
                             </div>
                           )}
                           {venue.logistics_badge && (
                             <div className="absolute top-3 left-3 bg-white border border-black px-2 py-1">
-                              <span className="font-headline text-[10px] tracking-widest uppercase text-black">{venue.logistics_badge}</span>
+                              <span style={{ ...META, fontSize: '0.6rem', color: '#0A0A0A' }}>{venue.logistics_badge}</span>
                             </div>
                           )}
                           <div className="absolute top-3 right-3 bg-white border border-black px-2 py-1">
-                            <span className="font-headline text-[10px] tracking-widest uppercase text-black capitalize">{venue.energy_tag}</span>
+                            <span style={{ ...META, fontSize: '0.6rem', color: '#0A0A0A' }}>{venue.energy_tag}</span>
                           </div>
                           {isSelected && (
                             <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                              <span className="font-headline text-4xl text-white tracking-tighter">ADDED ✓</span>
+                              <span style={{ ...DISPLAY, fontSize: '2.5rem', color: '#FFFFFF' }}>ADDED ✓</span>
                             </div>
                           )}
                         </div>
 
-                        {/* Info */}
+                        {/* Info block */}
                         <div className="p-4" style={{ backgroundColor: isSelected ? '#0A0A0A' : '#FFFFFF' }}>
                           <div className="flex items-start justify-between gap-3">
-                            <h3
-                              className="font-headline text-2xl tracking-tighter leading-none uppercase"
-                              style={{ color: isSelected ? '#FFFFFF' : '#0A0A0A' }}
-                            >
+                            <h3 style={{ ...DISPLAY, fontSize: '1.75rem', color: isSelected ? '#FFFFFF' : '#0A0A0A' }}>
                               {venue.name}
                             </h3>
                             <div
-                              className="flex-shrink-0 w-8 h-8 border-2 flex items-center justify-center font-headline text-base"
-                              style={isSelected
-                                ? { borderColor: '#FFFFFF', color: '#FFFFFF', backgroundColor: '#0A0A0A' }
-                                : { borderColor: '#0A0A0A', color: '#0A0A0A', backgroundColor: '#FFFFFF' }
-                              }
+                              className="flex-shrink-0 w-8 h-8 border-2 flex items-center justify-center"
+                              style={{
+                                ...DISPLAY,
+                                fontSize: '1rem',
+                                borderColor: isSelected ? '#FFFFFF' : '#0A0A0A',
+                                color:       isSelected ? '#FFFFFF' : '#0A0A0A',
+                                backgroundColor: isSelected ? '#0A0A0A' : '#FFFFFF',
+                              }}
                             >
                               {isSelected ? '✓' : '+'}
                             </div>
                           </div>
                           {venue.pro_tip && (
                             <p
-                              className="font-body text-xs mt-3 leading-relaxed italic"
-                              style={{ color: isSelected ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' }}
+                              className="text-xs mt-3 leading-relaxed italic"
+                              style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontWeight: 400, color: isSelected ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' }}
                             >
                               &ldquo;{venue.pro_tip}&rdquo;
                             </p>
@@ -400,14 +389,14 @@ export default function WizardContainer() {
         <div className="fixed bottom-0 left-0 right-0 border-t-2 border-black bg-black z-50">
           <div className="max-w-md mx-auto px-5 py-4 flex items-center justify-between">
             <div>
-              <span className="font-headline text-3xl text-white tracking-tighter leading-none block">{selected.length}/5</span>
-              <span className="font-body text-[10px] text-white/40 tracking-widest uppercase">Selected</span>
+              <span style={{ ...DISPLAY, fontSize: '2rem', color: '#FFFFFF' }} className="block">{selected.length}/5</span>
+              <span style={{ ...META, fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' }}>Selected</span>
             </div>
             <button
               onClick={createPoll}
               disabled={pollCreating}
-              className="bg-white text-black border-2 border-white font-headline text-sm tracking-widest uppercase px-6 py-3 disabled:opacity-50"
-              style={{ boxShadow: '3px 3px 0 rgba(255,255,255,0.25)', transition: 'none' }}
+              className="bg-white text-black border-2 border-white px-6 py-3 disabled:opacity-50"
+              style={{ ...META, fontSize: '0.75rem', boxShadow: '3px 3px 0 rgba(255,255,255,0.2)', transition: 'none' }}
             >
               {pollCreating ? 'CREATING…' : 'CREATE POLL →'}
             </button>
