@@ -3,6 +3,7 @@ import '../globals.css';
 export const metadata = {
   title: 'PLANR.',
   description: 'London in 60 seconds',
+  icons: { icon: '/icon.svg' },
 };
 
 export default function RootLayout({ children }) {
