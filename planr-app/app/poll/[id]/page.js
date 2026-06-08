@@ -9,9 +9,13 @@ const supabase = createClient(
 
 export default function PollPage({ params }) {
   const [poll, setPoll] = useState(null);
+  const [myVotes, setMyVotes] = useState([]);
   const pollId = params.id;
 
   useEffect(() => {
+    const stored = localStorage.getItem(`planr_votes_${pollId}`);
+    if (stored) setMyVotes(JSON.parse(stored));
+
     async function getInitialPoll() {
       const { data } = await supabase.from('polls').select('*').eq('id', pollId).single();
       if (data) setPoll(data);
@@ -31,8 +35,22 @@ export default function PollPage({ params }) {
   const vote = async (optionId) => {
     if (poll?.is_closed) return;
     const currentVotes = poll.votes || {};
-    const updatedVotes = { ...currentVotes, [optionId]: (currentVotes[optionId] || 0) + 1 };
+    const alreadyVoted = myVotes.includes(optionId);
+    let updatedMyVotes;
+    let updatedVotes;
+
+    if (alreadyVoted) {
+      updatedMyVotes = myVotes.filter(id => id !== optionId);
+      updatedVotes = { ...currentVotes, [optionId]: Math.max((currentVotes[optionId] || 1) - 1, 0) };
+    } else {
+      if (myVotes.length >= 3) return;
+      updatedMyVotes = [...myVotes, optionId];
+      updatedVotes = { ...currentVotes, [optionId]: (currentVotes[optionId] || 0) + 1 };
+    }
+
     await supabase.from('polls').update({ votes: updatedVotes }).eq('id', pollId);
+    localStorage.setItem(`planr_votes_${pollId}`, JSON.stringify(updatedMyVotes));
+    setMyVotes(updatedMyVotes);
   };
 
   const toggleClose = async () => {
@@ -56,6 +74,11 @@ export default function PollPage({ params }) {
         <div style={{ display: 'inline-block', marginTop: '10px', backgroundColor: '#EEF2FF', color: '#6366f1', fontSize: '10px', fontWeight: '900', padding: '5px 15px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '1px' }}>
           {poll.is_closed ? 'Voting Closed' : 'Live Voting Room'}
         </div>
+        {!poll.is_closed && (
+          <p style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>
+            Pick up to 3 options · {myVotes.length}/3 voted
+          </p>
+        )}
       </header>
 
       {/* Winner Banner */}
@@ -74,11 +97,22 @@ export default function PollPage({ params }) {
         {poll.restaurants?.map((opt) => {
           const votes = poll.votes?.[opt.id] || 0;
           const isWinning = votes > 0 && votes === maxVotes;
+          const isMyVote = myVotes.includes(opt.id);
+          const isMaxed = myVotes.length >= 3 && !isMyVote;
+          const isDisabled = poll.is_closed || isMaxed;
+
+          let btnBg = '#FFF';
+          if (isMyVote) btnBg = '#6366f1';
+          else if (poll.is_closed && isWinning) btnBg = '#6366f1';
+          else if (isDisabled) btnBg = '#F3F4F6';
+
+          const btnTextColor = (isMyVote || (poll.is_closed && isWinning)) ? '#FFF' : '#000';
+          const labelColor = (isMyVote || (poll.is_closed && isWinning)) ? '#FFF' : '#6366f1';
 
           return (
             <div
               key={opt.id}
-              style={{ position: 'relative', height: '280px', borderRadius: '35px', overflow: 'hidden', border: isWinning ? '5px solid #6366f1' : '2px solid #EEE', transition: '0.3s' }}
+              style={{ position: 'relative', height: '280px', borderRadius: '35px', overflow: 'hidden', border: isMyVote ? '5px solid #6366f1' : isWinning ? '5px solid #6366f1' : '2px solid #EEE', transition: '0.3s', opacity: isMaxed ? 0.6 : 1 }}
             >
               <img src={opt.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }} />
@@ -91,14 +125,19 @@ export default function PollPage({ params }) {
               {/* Vote Button Overlay */}
               <button
                 onClick={() => vote(opt.id)}
-                disabled={poll.is_closed}
-                style={{ position: 'absolute', bottom: '25px', right: '25px', width: '80px', height: '60px', borderRadius: '20px', backgroundColor: poll.is_closed ? '#F3F4F6' : (isWinning ? '#6366f1' : '#FFF'), border: 'none', cursor: poll.is_closed ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 20px rgba(0,0,0,0.2)' }}
+                disabled={isDisabled}
+                style={{ position: 'absolute', bottom: '25px', right: '25px', width: '80px', height: '60px', borderRadius: '20px', backgroundColor: btnBg, border: 'none', cursor: isDisabled ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 20px rgba(0,0,0,0.2)' }}
               >
-                <span style={{ fontSize: '9px', fontWeight: '900', color: (isWinning || poll.is_closed) ? '#FFF' : '#6366f1', opacity: isWinning ? 1 : 0.6 }}>VOTES</span>
-                <span style={{ fontSize: '20px', fontWeight: '900', color: (isWinning || poll.is_closed) ? '#FFF' : '#000' }}>{votes}</span>
+                <span style={{ fontSize: '9px', fontWeight: '900', color: labelColor, opacity: (isMyVote || (poll.is_closed && isWinning)) ? 1 : 0.6 }}>
+                  {isMyVote ? 'YOUR VOTE' : 'VOTES'}
+                </span>
+                <span style={{ fontSize: '20px', fontWeight: '900', color: btnTextColor }}>{votes}</span>
               </button>
 
-              {isWinning && !poll.is_closed && (
+              {isMyVote && !poll.is_closed && (
+                <div style={{ position: 'absolute', top: '20px', left: '20px', backgroundColor: '#6366f1', padding: '5px 12px', borderRadius: '15px', fontSize: '10px', fontWeight: '900', color: '#FFF' }}>✓ YOUR PICK</div>
+              )}
+              {isWinning && !isMyVote && !poll.is_closed && (
                 <div style={{ position: 'absolute', top: '20px', left: '20px', backgroundColor: '#FFD700', padding: '5px 12px', borderRadius: '15px', fontSize: '10px', fontWeight: '900' }}>🏆 LEADING</div>
               )}
             </div>

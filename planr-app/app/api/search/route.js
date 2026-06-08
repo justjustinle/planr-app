@@ -1,36 +1,33 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const location = searchParams.get('location') || 'London';
-    const term = searchParams.get('term') || 'restaurants';
+    const location = searchParams.get('location') || '';
+    const category = searchParams.get('term') || 'restaurants';
 
-    const apiKey = process.env.YELP_API_KEY;
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('id, name, image_url, rating, price, url')
+      .ilike('location', location.trim())
+      .eq('category', category)
+      .limit(15);
 
-    const res = await fetch(
-      `https://api.yelp.com/v3/businesses/search?location=${encodeURIComponent(location)}&term=${encodeURIComponent(term)}&limit=15`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Accept': 'application/json'
-        },
-        // This prevents Next.js from caching old search results
-        next: { revalidate: 0 }
-      }
-    );
-
-    const data = await res.json();
-
-    if (data.error) {
-      console.error("Yelp API Error:", data.error);
-      return NextResponse.json({ businesses: [], error: data.error.description }, { status: 400 });
+    if (error) {
+      console.error('Supabase Error:', error);
+      return NextResponse.json({ businesses: [], error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ businesses: data.businesses || [] });
+    return NextResponse.json({ businesses: data || [] });
 
   } catch (error) {
-    console.error("Server Error:", error);
-    return NextResponse.json({ businesses: [], error: "Internal Server Error" }, { status: 500 });
+    console.error('Server Error:', error);
+    return NextResponse.json({ businesses: [], error: 'Internal Server Error' }, { status: 500 });
   }
 }
