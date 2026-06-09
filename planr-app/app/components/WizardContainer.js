@@ -130,8 +130,8 @@ export default function WizardContainer() {
     >
 
       {/* ── MASTHEAD ── */}
-      <header className="border-b-2 border-black px-5 pt-8 pb-5">
-        <div className="max-w-md mx-auto">
+      <header className="border-b-2 border-black pt-8 pb-5">
+        <div className="max-w-md mx-auto px-5">
           <div className="flex items-end justify-between">
             <h1 className="font-sans font-black uppercase tracking-tighter leading-none" style={{ ...DISPLAY, fontSize: '6rem', color: fg }}>INDEX.</h1>
             {step < STEP.RESULTS && (
