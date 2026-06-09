@@ -52,7 +52,7 @@ const WHO_OPTIONS = [
   { value: 'romantic',    label: 'Romantic',    sublabel: 'intimate rooms & dim lighting'  },
   { value: 'squad',       label: 'Squad',       sublabel: 'group tables & sharing plates'  },
   { value: 'celebration', label: 'Celebration', sublabel: 'for those special moments'    },
-  { value: 'buzzy',       label: 'Buzzy',       sublabel: 'high energy and vibrant rooms' },
+  { value: 'buzzy',       label: 'Buzzy',       sublabel: 'vibrant and high energy' },
   { value: 'lowkey',      label: 'Lowkey',      sublabel: 'chill spots & effortless food'  },
 ];
 
