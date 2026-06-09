@@ -1,7 +1,7 @@
 import '../globals.css';
 
 export const metadata = {
-  title: 'PLANR.',
+  title: 'INDEX. // The London Curation System',
   description: 'London in 60 seconds',
   icons: { icon: '/icon.svg' },
 };
