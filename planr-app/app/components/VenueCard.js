@@ -44,7 +44,7 @@ function IndexCardFallback({ venue }) {
         margin: 0,
         letterSpacing: '0.2em',
       }}>
-        [ PLANR. VERIFIED CRITIC CHOICE ]
+        [ IMAGERY UNRELEASED - TRUST THE INDEX. ]
       </p>
 
       {/* Hero text */}

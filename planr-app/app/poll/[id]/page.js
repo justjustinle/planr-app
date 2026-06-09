@@ -13,7 +13,7 @@ export default function PollPage({ params }) {
   const pollId = params.id;
 
   useEffect(() => {
-    const stored = localStorage.getItem(`planr_votes_${pollId}`);
+    const stored = localStorage.getItem(`index_votes_${pollId}`);
     if (stored) setMyVotes(JSON.parse(stored));
 
     async function getInitialPoll() {
@@ -49,7 +49,7 @@ export default function PollPage({ params }) {
     }
 
     await supabase.from('polls').update({ votes: updatedVotes }).eq('id', pollId);
-    localStorage.setItem(`planr_votes_${pollId}`, JSON.stringify(updatedMyVotes));
+    localStorage.setItem(`index_votes_${pollId}`, JSON.stringify(updatedMyVotes));
     setMyVotes(updatedMyVotes);
   };
 
@@ -70,7 +70,7 @@ export default function PollPage({ params }) {
 
       {/* Header */}
       <header style={{ textAlign: 'center', padding: '60px 20px 20px' }}>
-        <h1 style={{ fontSize: '48px', fontWeight: '900', fontStyle: 'italic', color: '#6366f1', letterSpacing: '-2px', margin: 0 }}>PLANR.</h1>
+        <h1 className="font-sans font-black uppercase tracking-tighter leading-none text-black" style={{ fontSize: '48px', margin: 0 }}>INDEX.</h1>
         <div style={{ display: 'inline-block', marginTop: '10px', backgroundColor: '#EEF2FF', color: '#6366f1', fontSize: '10px', fontWeight: '900', padding: '5px 15px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '1px' }}>
           {poll.is_closed ? 'Voting Closed' : 'Live Voting Room'}
         </div>
