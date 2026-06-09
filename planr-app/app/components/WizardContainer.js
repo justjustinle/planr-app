@@ -13,7 +13,7 @@ const supabase = createClient(
 const STEP = { WHERE: 1, WHAT: 2, WHO: 3, RESULTS: 4 };
 
 const STEP_THEME = {
-  [STEP.WHERE]:   { bg: '#F2E579', fg: '#0A0A0A' },
+  [STEP.WHERE]:   { bg: '#F8E98A', fg: '#0A0A0A' },
   [STEP.WHAT]:    { bg: '#7188F0', fg: '#0A0A0A' },
   [STEP.WHO]:     { bg: '#F8976F', fg: '#0A0A0A' },
   [STEP.RESULTS]: { bg: '#F8E98A', fg: '#0A0A0A' },
@@ -133,10 +133,10 @@ export default function WizardContainer() {
       <header className="border-b-2 border-black px-5 pt-8 pb-5">
         <div className="max-w-md mx-auto">
           <div className="flex items-end justify-between">
-            <h1 className="text-4xl font-black uppercase tracking-tighter leading-none text-black">INDEX.</h1>
+            <h1 className="font-sans font-black uppercase tracking-tighter leading-none" style={{ ...DISPLAY, fontSize: '6rem', color: fg }}>INDEX.</h1>
             {step < STEP.RESULTS && (
-              <span className="font-mono font-bold text-black/50 text-sm">
-                0{step} / 03
+              <span style={{ ...DISPLAY, fontSize: '1.5rem', color: fg, opacity: 0.35 }}>
+                0{step}&thinsp;/&thinsp;03
               </span>
             )}
           </div>
@@ -184,29 +184,23 @@ export default function WizardContainer() {
         {/* ── STEP 1: WHERE ── */}
         {step === STEP.WHERE && (
           <div className="animate-fade-in flex flex-col">
-            <h2 className="font-black uppercase text-5xl tracking-tighter leading-none mb-2 text-black">
+            <h2 style={{ ...DISPLAY, fontSize: '5rem', color: fg }} className="mb-4">
               WHERE IN<br />LONDON?
             </h2>
-            <p className="text-xs tracking-widest text-black/60 uppercase mb-8">
+            <p className="text-xs mb-10" style={{ ...META, color: fg, opacity: 0.5 }}>
               Select your neighbourhood
             </p>
-            <div className="grid grid-cols-2 gap-4">
-              {WHERE_OPTIONS.map((opt) => {
-                const isSel = neighborhood === opt.value;
-                return (
-                  <button
-                    key={opt.value}
+            <div className="grid grid-cols-2 gap-3">
+              {WHERE_OPTIONS.map((opt) => (
+                <div key={opt.value}>
+                  <SelectionCard
+                    label={opt.label}
+                    selected={neighborhood === opt.value}
                     onClick={() => pickNeighborhood(opt.value)}
-                    className={`headline flex items-center justify-center border-2 border-black p-7 text-2xl tracking-tighter transition-none ${
-                      isSel
-                        ? 'bg-black text-white translate-x-1 translate-y-1 shadow-none'
-                        : 'bg-white text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
+                    accentColor={bg}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         )}
