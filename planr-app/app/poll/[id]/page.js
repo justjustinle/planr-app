@@ -129,7 +129,7 @@ export default function PollPage({ params }) {
             {winner.booking_action && (() => {
               const action = winner.booking_action.trim();
               const isWalkIn = action.toUpperCase() === 'WALK IN ONLY';
-              const isPhone = /^[\d\s\+\(\)\-]+$/.test(action);
+              const isPhone = !isWalkIn && !action.startsWith('http');
               const actionStyle = { ...META, fontSize: '0.65rem', marginTop: '16px', color: 'rgba(255,255,255,0.7)' };
               if (isWalkIn) return <p style={actionStyle}>This venue is walk in only</p>;
               if (isPhone) return <p style={actionStyle}>Please call: {action}</p>;
