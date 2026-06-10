@@ -202,8 +202,26 @@ export default function PollPage({ params }) {
                       <span style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.7rem', opacity: 0.75 }}>{opt.price_range}</span>
                     )}
                   </div>
-                  {opt.neighborhood && (
-                    <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.7rem', opacity: 0.7, margin: '2px 0 0' }}>{opt.neighborhood}</p>
+                  {opt.pro_tip && (
+                    <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.72rem', opacity: 0.9, marginTop: '4px', marginBottom: 0, fontStyle: 'italic', lineHeight: 1.3, textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
+                      {opt.pro_tip}
+                    </p>
+                  )}
+                  {(opt.menu_url || opt.google_maps) && (
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                      {opt.menu_url && (
+                        <a href={opt.menu_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                          style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0A0A0A', backgroundColor: 'rgba(255,255,255,0.9)', padding: '3px 8px', textDecoration: 'none', border: '1px solid rgba(0,0,0,0.15)' }}>
+                          Menu
+                        </a>
+                      )}
+                      {opt.google_maps && (
+                        <a href={opt.google_maps} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                          style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0A0A0A', backgroundColor: 'rgba(255,255,255,0.9)', padding: '3px 8px', textDecoration: 'none', border: '1px solid rgba(0,0,0,0.15)' }}>
+                          Maps
+                        </a>
+                      )}
+                    </div>
                   )}
                 </div>
 
