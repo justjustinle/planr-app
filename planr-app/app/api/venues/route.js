@@ -17,13 +17,13 @@ export async function GET(req) {
       return NextResponse.json({ venues: [], error: 'Missing parameters' }, { status: 400 });
     }
 
-    // Primary: exact 3-filter match
+    // Primary: exact 3-filter match (case-insensitive)
     const { data: exact, error } = await supabase
       .from('databaseindex')
       .select('*')
-      .eq('neighborhood', neighborhood)
-      .eq('activity_type', activity_type)
-      .eq('energy_tag', energy_tag);
+      .ilike('neighborhood', neighborhood)
+      .ilike('activity_type', activity_type)
+      .ilike('energy_tag', energy_tag);
 
     if (error) {
       return NextResponse.json({ venues: [], error: error.message }, { status: 500 });
@@ -37,8 +37,8 @@ export async function GET(req) {
     const { data: fallback, error: fallbackError } = await supabase
       .from('databaseindex')
       .select('*')
-      .eq('neighborhood', neighborhood)
-      .eq('activity_type', activity_type);
+      .ilike('neighborhood', neighborhood)
+      .ilike('activity_type', activity_type);
 
     if (fallbackError) {
       return NextResponse.json({ venues: [], error: fallbackError.message }, { status: 500 });
