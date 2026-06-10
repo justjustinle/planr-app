@@ -59,9 +59,9 @@ const WHO_OPTIONS = [
 export default function WizardContainer() {
   const router = useRouter();
   const [step, setStep] = useState(STEP.WHERE);
-  const [neighborhood, setNeighborhood] = useState(null);
-  const [activityType, setActivityType] = useState(null);
-  const [energyTag, setEnergyTag] = useState(null);
+  const [neighborhoods, setNeighborhoods] = useState([]);
+  const [activityTypes, setActivityTypes] = useState([]);
+  const [energyTags, setEnergyTags] = useState([]);
   const [venues, setVenues] = useState([]);
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -71,20 +71,28 @@ export default function WizardContainer() {
 
   const { bg, fg } = STEP_THEME[step];
 
-  const pickNeighborhood = (value) => { setNeighborhood(value); setTimeout(() => setStep(STEP.WHAT), 160); };
-  const pickActivity     = (value) => { setActivityType(value); setTimeout(() => setStep(STEP.WHO),  160); };
+  const toggleTag = (setter) => (value) => {
+    setter(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]);
+  };
+  const toggleNeighborhood = toggleTag(setNeighborhoods);
+  const toggleActivity     = toggleTag(setActivityTypes);
+  const toggleEnergy       = toggleTag(setEnergyTags);
 
-  const pickEnergy = async (value) => {
-    setEnergyTag(value);
+  const fetchVenues = async () => {
     setLoading(true);
     setStep(STEP.RESULTS);
     try {
-      const res  = await fetch(`/api/venues?neighborhood=${neighborhood}&activity_type=${activityType}&energy_tag=${value}`);
+      const params = new URLSearchParams({
+        neighborhood: neighborhoods.join(','),
+        activity_type: activityTypes.join(','),
+        energy_tag: energyTags.join(','),
+      });
+      const res  = await fetch(`/api/venues?${params}`);
       const data = await res.json();
       if (data.error) console.error('Venues API error:', data.error);
       setVenues(data.venues || []);
       setFuzzy(!!data.fuzzy);
-      setFuzzyMeta(data.fuzzy ? { requested: value, available: data.availableEnergies || [] } : null);
+      setFuzzyMeta(data.fuzzy ? { requested: energyTags.join(', '), available: data.availableEnergies || [] } : null);
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -101,16 +109,16 @@ export default function WizardContainer() {
     if (!selected.length || pollCreating) return;
     setPollCreating(true);
     const { data, error } = await supabase.from('polls').insert([{
-      restaurants: selected, location: neighborhood,
-      votes: {}, is_closed: false, activity_type: activityType,
+      restaurants: selected, location: neighborhoods.join(', '),
+      votes: {}, is_closed: false, activity_type: activityTypes.join(', '),
     }]).select();
     if (!error) router.push(`/poll/${data[0].id}`);
     else setPollCreating(false);
   };
 
   const back = () => {
-    if (step === STEP.WHAT)    { setActivityType(null); setStep(STEP.WHERE); }
-    if (step === STEP.WHO)     { setEnergyTag(null);    setStep(STEP.WHAT); }
+    if (step === STEP.WHAT)    { setActivityTypes([]); setStep(STEP.WHERE); }
+    if (step === STEP.WHO)     { setEnergyTags([]);    setStep(STEP.WHAT); }
     if (step === STEP.RESULTS) { setVenues([]); setSelected([]); setFuzzy(false); setFuzzyMeta(null); setStep(STEP.WHO); }
   };
 
@@ -121,6 +129,26 @@ export default function WizardContainer() {
       style={{ ...META, color: fg, opacity: 0.45, transition: 'none' }}
     >
       ← Back
+    </button>
+  );
+
+  const NextButton = ({ enabled, onClick }) => (
+    <button
+      onClick={onClick}
+      disabled={!enabled}
+      className="mt-8 px-8 py-4 border-2 border-black disabled:opacity-30"
+      style={{
+        ...META,
+        fontSize: '0.75rem',
+        backgroundColor: enabled ? '#0A0A0A' : 'transparent',
+        color: enabled ? bg : fg,
+        cursor: enabled ? 'pointer' : 'default',
+        boxShadow: enabled ? '4px 4px 0 rgba(0,0,0,0.3)' : 'none',
+        transition: 'none',
+        width: 'fit-content',
+      }}
+    >
+      NEXT →
     </button>
   );
 
@@ -189,20 +217,21 @@ export default function WizardContainer() {
               WHERE IN<br />LONDON?
             </h2>
             <p className="text-xs mb-10" style={{ ...META, color: fg, opacity: 0.5 }}>
-              Select your neighbourhood
+              Select one or more neighbourhoods
             </p>
             <div className="grid grid-cols-2 gap-3">
               {WHERE_OPTIONS.map((opt) => (
                 <div key={opt.value}>
                   <SelectionCard
                     label={opt.label}
-                    selected={neighborhood === opt.value}
-                    onClick={() => pickNeighborhood(opt.value)}
+                    selected={neighborhoods.includes(opt.value)}
+                    onClick={() => toggleNeighborhood(opt.value)}
                     accentColor={bg}
                   />
                 </div>
               ))}
             </div>
+            <NextButton enabled={neighborhoods.length > 0} onClick={() => setStep(STEP.WHAT)} />
           </div>
         )}
 
@@ -213,7 +242,7 @@ export default function WizardContainer() {
               WHAT'S<br />THE PLAN?
             </h2>
             <p className="text-xs mb-10" style={{ ...META, color: fg, opacity: 0.5 }}>
-              Choose an activity
+              Choose one or more activities
             </p>
             <div className="flex flex-col gap-3">
               {WHAT_OPTIONS.map(opt => (
@@ -221,12 +250,13 @@ export default function WizardContainer() {
                   key={opt.value}
                   label={opt.label}
                   sublabel={opt.sublabel}
-                  selected={activityType === opt.value}
-                  onClick={() => pickActivity(opt.value)}
+                  selected={activityTypes.includes(opt.value)}
+                  onClick={() => toggleActivity(opt.value)}
                   accentColor={bg}
                 />
               ))}
             </div>
+            <NextButton enabled={activityTypes.length > 0} onClick={() => setStep(STEP.WHO)} />
             <BackButton />
           </div>
         )}
@@ -238,7 +268,7 @@ export default function WizardContainer() {
               WHAT'S THE<br />ENERGY?
             </h2>
             <p className="text-xs mb-10" style={{ ...META, color: fg, opacity: 0.5 }}>
-              Set the vibe
+              Pick one or more vibes
             </p>
             <div className="grid grid-cols-2 gap-3">
               {WHO_OPTIONS.map((opt) => (
@@ -246,13 +276,14 @@ export default function WizardContainer() {
                   <SelectionCard
                     label={opt.label}
                     sublabel={opt.sublabel}
-                    selected={energyTag === opt.value}
-                    onClick={() => pickEnergy(opt.value)}
+                    selected={energyTags.includes(opt.value)}
+                    onClick={() => toggleEnergy(opt.value)}
                     accentColor={bg}
                   />
                 </div>
               ))}
             </div>
+            <NextButton enabled={energyTags.length > 0} onClick={fetchVenues} />
             <BackButton />
           </div>
         )}
@@ -270,7 +301,7 @@ export default function WizardContainer() {
               <>
                 <div className="border-b-2 border-black pb-5 mb-6">
                   <div className="flex gap-2 flex-wrap mb-3">
-                    {[neighborhood, activityType, !fuzzy && energyTag].filter(Boolean).map(tag => (
+                    {[...neighborhoods, ...activityTypes, ...(!fuzzy ? energyTags : [])].map(tag => (
                       <span
                         key={tag}
                         className="border border-black px-2 py-0.5 bg-white text-black"
