@@ -82,7 +82,7 @@ function IndexCardFallback({ venue }) {
 }
 
 export default function VenueCard({ venue, isSelected, onToggle }) {
-  const [imgFailed, setImgFailed] = useState(!venue.hero_image_url);
+  const [imgFailed, setImgFailed] = useState(!venue.hero_image);
 
   return (
     <div
@@ -103,7 +103,7 @@ export default function VenueCard({ venue, isSelected, onToggle }) {
         {!imgFailed ? (
           <>
             <img
-              src={venue.hero_image_url}
+              src={venue.hero_image}
               onError={() => setImgFailed(true)}
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               alt=""
