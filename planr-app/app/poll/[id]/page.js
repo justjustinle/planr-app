@@ -26,6 +26,7 @@ export default function PollPage({ params }) {
   const [poll, setPoll] = useState(null);
   const [myVotes, setMyVotes] = useState([]);
   const [voting, setVoting] = useState(new Set());
+  const [timeLeft, setTimeLeft] = useState(null);
   const pollId = params.id;
 
   useEffect(() => {
@@ -47,6 +48,28 @@ export default function PollPage({ params }) {
 
     return () => { supabase.removeChannel(channel); };
   }, [pollId]);
+
+  // Countdown timer — starts from poll.created_at, runs for 10 minutes
+  useEffect(() => {
+    if (!poll || poll.is_closed) { setTimeLeft(null); return; }
+
+    const DURATION_MS = 10 * 60 * 1000;
+    const endsAt = new Date(poll.created_at).getTime() + DURATION_MS;
+
+    const tick = () => {
+      const remaining = endsAt - Date.now();
+      if (remaining <= 0) {
+        setTimeLeft(0);
+        supabase.from('polls').update({ is_closed: true }).eq('id', pollId);
+      } else {
+        setTimeLeft(remaining);
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [poll?.created_at, poll?.is_closed, pollId]);
 
   const vote = async (optionName) => {
     if (poll?.is_closed || voting.has(optionName)) return;
@@ -98,17 +121,30 @@ export default function PollPage({ params }) {
         <div style={{ maxWidth: '500px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
             <h1 style={{ ...DISPLAY, fontSize: '5rem', color: '#0A0A0A', margin: 0 }}>INDEX.</h1>
-            <div style={{
-              border: '2px solid #0A0A0A',
-              padding: '4px 12px',
-              marginBottom: '8px',
-              ...META,
-              fontSize: '0.6rem',
-              color: '#0A0A0A',
-              backgroundColor: poll.is_closed ? '#0A0A0A' : 'transparent',
-              color: poll.is_closed ? '#F8E98A' : '#0A0A0A',
-            }}>
-              {poll.is_closed ? 'VOTING CLOSED' : 'LIVE VOTE'}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', marginBottom: '8px' }}>
+              <div style={{
+                border: '2px solid #0A0A0A',
+                padding: '4px 12px',
+                ...META,
+                fontSize: '0.6rem',
+                backgroundColor: poll.is_closed ? '#0A0A0A' : 'transparent',
+                color: poll.is_closed ? '#F8E98A' : '#0A0A0A',
+              }}>
+                {poll.is_closed ? 'VOTING CLOSED' : 'LIVE VOTE'}
+              </div>
+              {!poll.is_closed && timeLeft !== null && (
+                <div style={{
+                  border: '2px solid #0A0A0A',
+                  padding: '4px 12px',
+                  ...META,
+                  fontSize: '0.6rem',
+                  color: timeLeft < 60000 ? '#FF3B30' : '#0A0A0A',
+                  backgroundColor: timeLeft < 60000 ? '#FF3B30' : 'transparent',
+                  color: timeLeft < 60000 ? '#FFF' : '#0A0A0A',
+                }}>
+                  {String(Math.floor(timeLeft / 60000)).padStart(2, '0')}:{String(Math.floor((timeLeft % 60000) / 1000)).padStart(2, '0')}
+                </div>
+              )}
             </div>
           </div>
           {!poll.is_closed && (
@@ -225,17 +261,19 @@ export default function PollPage({ params }) {
                   )}
                 </div>
 
-                {/* Status badges */}
-                {isMyVote && !poll.is_closed && (
-                  <div style={{ position: 'absolute', top: '16px', left: '16px', backgroundColor: '#F8E98A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#0A0A0A' }}>
-                    ✓ YOUR PICK
-                  </div>
-                )}
-                {isWinning && !poll.is_closed && (
-                  <div style={{ position: 'absolute', top: '16px', left: '16px', backgroundColor: '#0A0A0A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#F8E98A' }}>
-                    LEADING
-                  </div>
-                )}
+                {/* Status badges — stacked so they never overlap */}
+                <div style={{ position: 'absolute', top: '16px', left: '16px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  {isWinning && !poll.is_closed && (
+                    <div style={{ backgroundColor: '#0A0A0A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#F8E98A' }}>
+                      LEADING
+                    </div>
+                  )}
+                  {isMyVote && !poll.is_closed && (
+                    <div style={{ backgroundColor: '#F8E98A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#0A0A0A' }}>
+                      ✓ YOUR PICK
+                    </div>
+                  )}
+                </div>
 
                 {/* Vote button */}
                 <button
