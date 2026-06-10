@@ -191,6 +191,22 @@ export default function PollPage({ params }) {
                 </a>
               );
             })()}
+            {(winner.menu_url || winner.google_maps) && (
+              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                {winner.menu_url && (
+                  <a href={winner.menu_url} target="_blank" rel="noopener noreferrer"
+                    style={{ ...META, fontSize: '0.6rem', color: '#0A0A0A', backgroundColor: 'rgba(255,255,255,0.9)', padding: '6px 14px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.3)' }}>
+                    Menu
+                  </a>
+                )}
+                {winner.google_maps && (
+                  <a href={winner.google_maps} target="_blank" rel="noopener noreferrer"
+                    style={{ ...META, fontSize: '0.6rem', color: '#0A0A0A', backgroundColor: 'rgba(255,255,255,0.9)', padding: '6px 14px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.3)' }}>
+                    Maps
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         )}
 
