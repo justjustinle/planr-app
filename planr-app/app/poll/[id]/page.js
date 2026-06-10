@@ -25,6 +25,7 @@ const META = {
 export default function PollPage({ params }) {
   const [poll, setPoll] = useState(null);
   const [myVotes, setMyVotes] = useState([]);
+  const [voting, setVoting] = useState(new Set());
   const pollId = params.id;
 
   useEffect(() => {
@@ -48,24 +49,30 @@ export default function PollPage({ params }) {
   }, [pollId]);
 
   const vote = async (optionName) => {
-    if (poll?.is_closed) return;
-    const currentVotes = poll.votes || {};
+    if (poll?.is_closed || voting.has(optionName)) return;
     const alreadyVoted = myVotes.includes(optionName);
-    let updatedMyVotes;
-    let updatedVotes;
+    if (!alreadyVoted && myVotes.length >= 3) return;
 
-    if (alreadyVoted) {
-      updatedMyVotes = myVotes.filter(n => n !== optionName);
-      updatedVotes = { ...currentVotes, [optionName]: Math.max((currentVotes[optionName] || 1) - 1, 0) };
-    } else {
-      if (myVotes.length >= 3) return;
-      updatedMyVotes = [...myVotes, optionName];
-      updatedVotes = { ...currentVotes, [optionName]: (currentVotes[optionName] || 0) + 1 };
-    }
+    setVoting(prev => new Set(prev).add(optionName));
+
+    // Fetch latest votes from DB to avoid stale-state race conditions
+    const { data: fresh } = await supabase.from('polls').select('votes').eq('id', pollId).single();
+    const currentVotes = fresh?.votes || {};
+
+    const updatedMyVotes = alreadyVoted
+      ? myVotes.filter(n => n !== optionName)
+      : [...myVotes, optionName];
+    const updatedVotes = {
+      ...currentVotes,
+      [optionName]: alreadyVoted
+        ? Math.max((currentVotes[optionName] || 1) - 1, 0)
+        : (currentVotes[optionName] || 0) + 1,
+    };
 
     await supabase.from('polls').update({ votes: updatedVotes }).eq('id', pollId);
     localStorage.setItem(`index_votes_${pollId}`, JSON.stringify(updatedMyVotes));
     setMyVotes(updatedMyVotes);
+    setVoting(prev => { const s = new Set(prev); s.delete(optionName); return s; });
   };
 
   const toggleClose = async () => {
@@ -119,27 +126,35 @@ export default function PollPage({ params }) {
           <div style={{ margin: '32px 0', border: '2px solid #0A0A0A', backgroundColor: '#0A0A0A', padding: '36px 24px', boxShadow: '6px 6px 0 #0A0A0A' }}>
             <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(255,255,255,0.45)', margin: '0 0 8px' }}>THE VERDICT</p>
             <p style={{ ...DISPLAY, fontSize: '3.5rem', color: '#F8E98A', margin: 0 }}>{winner.name}</p>
-            {winner.booking_action && (
-              <a
-                href={winner.booking_action}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-block',
-                  marginTop: '20px',
-                  backgroundColor: '#F8E98A',
-                  color: '#0A0A0A',
-                  ...META,
-                  fontSize: '0.7rem',
-                  padding: '10px 24px',
-                  border: '2px solid #F8E98A',
-                  textDecoration: 'none',
-                  boxShadow: '3px 3px 0 rgba(255,255,255,0.2)',
-                }}
-              >
-                BOOK NOW →
-              </a>
-            )}
+            {winner.booking_action && (() => {
+              const action = winner.booking_action.trim();
+              const isWalkIn = action.toUpperCase() === 'WALK IN ONLY';
+              const isPhone = /^[\d\s\+\(\)\-]+$/.test(action);
+              const actionStyle = { ...META, fontSize: '0.65rem', marginTop: '16px', color: 'rgba(255,255,255,0.7)' };
+              if (isWalkIn) return <p style={actionStyle}>This venue is walk in only</p>;
+              if (isPhone) return <p style={actionStyle}>Please call: {action}</p>;
+              return (
+                <a
+                  href={action}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    marginTop: '20px',
+                    backgroundColor: '#F8E98A',
+                    color: '#0A0A0A',
+                    ...META,
+                    fontSize: '0.7rem',
+                    padding: '10px 24px',
+                    border: '2px solid #F8E98A',
+                    textDecoration: 'none',
+                    boxShadow: '3px 3px 0 rgba(255,255,255,0.2)',
+                  }}
+                >
+                  BOOK NOW →
+                </a>
+              );
+            })()}
           </div>
         )}
 
@@ -150,7 +165,7 @@ export default function PollPage({ params }) {
             const isWinning = votes > 0 && votes === maxVotes;
             const isMyVote = myVotes.includes(opt.name);
             const isMaxed = myVotes.length >= 3 && !isMyVote;
-            const isDisabled = poll.is_closed || isMaxed;
+            const isDisabled = poll.is_closed || isMaxed || voting.has(opt.name);
 
             return (
               <div
