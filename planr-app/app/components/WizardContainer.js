@@ -91,7 +91,7 @@ export default function WizardContainer() {
 
   const toggleVenue = (venue) => {
     setSelected(prev => {
-      if (prev.find(v => v.id === venue.id)) return prev.filter(v => v.id !== venue.id);
+      if (prev.find(v => v.name === venue.name)) return prev.filter(v => v.name !== venue.name);
       if (prev.length >= 5) return prev;
       return [...prev, venue];
     });
@@ -307,9 +307,9 @@ export default function WizardContainer() {
                 <div className="flex flex-col gap-5">
                   {venues.map(venue => (
                     <VenueCard
-                      key={venue.id}
+                      key={venue.name}
                       venue={venue}
-                      isSelected={!!selected.find(v => v.id === venue.id)}
+                      isSelected={!!selected.find(v => v.name === venue.name)}
                       onToggle={() => toggleVenue(venue)}
                     />
                   ))}

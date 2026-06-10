@@ -7,6 +7,21 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+const DISPLAY = {
+  fontFamily: '"Barlow Condensed", "Arial Black", Impact, sans-serif',
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+  lineHeight: 0.9,
+  textTransform: 'uppercase',
+};
+
+const META = {
+  fontFamily: 'Barlow, system-ui, sans-serif',
+  fontWeight: 400,
+  letterSpacing: '0.18em',
+  textTransform: 'uppercase',
+};
+
 export default function PollPage({ params }) {
   const [poll, setPoll] = useState(null);
   const [myVotes, setMyVotes] = useState([]);
@@ -32,20 +47,20 @@ export default function PollPage({ params }) {
     return () => { supabase.removeChannel(channel); };
   }, [pollId]);
 
-  const vote = async (optionId) => {
+  const vote = async (optionName) => {
     if (poll?.is_closed) return;
     const currentVotes = poll.votes || {};
-    const alreadyVoted = myVotes.includes(optionId);
+    const alreadyVoted = myVotes.includes(optionName);
     let updatedMyVotes;
     let updatedVotes;
 
     if (alreadyVoted) {
-      updatedMyVotes = myVotes.filter(id => id !== optionId);
-      updatedVotes = { ...currentVotes, [optionId]: Math.max((currentVotes[optionId] || 1) - 1, 0) };
+      updatedMyVotes = myVotes.filter(n => n !== optionName);
+      updatedVotes = { ...currentVotes, [optionName]: Math.max((currentVotes[optionName] || 1) - 1, 0) };
     } else {
       if (myVotes.length >= 3) return;
-      updatedMyVotes = [...myVotes, optionId];
-      updatedVotes = { ...currentVotes, [optionId]: (currentVotes[optionId] || 0) + 1 };
+      updatedMyVotes = [...myVotes, optionName];
+      updatedVotes = { ...currentVotes, [optionName]: (currentVotes[optionName] || 0) + 1 };
     }
 
     await supabase.from('polls').update({ votes: updatedVotes }).eq('id', pollId);
@@ -54,122 +69,195 @@ export default function PollPage({ params }) {
   };
 
   const toggleClose = async () => {
-    const newState = !poll?.is_closed;
-    await supabase.from('polls').update({ is_closed: newState }).eq('id', pollId);
+    await supabase.from('polls').update({ is_closed: !poll?.is_closed }).eq('id', pollId);
   };
 
-  if (!poll) return <div style={{ padding: '100px', textAlign: 'center', fontWeight: 'bold', fontFamily: 'sans-serif' }}>Loading Poll...</div>;
+  if (!poll) return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#F8E98A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ ...DISPLAY, fontSize: '3rem', color: '#0A0A0A' }}>LOADING…</p>
+    </div>
+  );
 
   const voteEntries = Object.entries(poll.votes || {});
   const maxVotes = voteEntries.length > 0 ? Math.max(...voteEntries.map(e => e[1])) : 0;
-  const leaderId = maxVotes > 0 ? voteEntries.find(e => e[1] === maxVotes)?.[0] : null;
-  const winner = poll.restaurants?.find(r => r.id === leaderId);
+  const leaderName = maxVotes > 0 ? voteEntries.find(e => e[1] === maxVotes)?.[0] : null;
+  const winner = poll.restaurants?.find(r => r.name === leaderName);
 
   return (
-    <div style={{ backgroundColor: '#FFFDF9', minHeight: '100vh', fontFamily: 'sans-serif', color: '#2D2926', paddingBottom: '120px' }}>
+    <div style={{ backgroundColor: '#F8E98A', minHeight: '100vh', paddingBottom: '120px' }}>
 
       {/* Header */}
-      <header style={{ textAlign: 'center', padding: '60px 20px 20px' }}>
-        <h1 className="font-sans font-black uppercase tracking-tighter leading-none text-black" style={{ fontSize: '48px', margin: 0 }}>INDEX.</h1>
-        <div style={{ display: 'inline-block', marginTop: '10px', backgroundColor: '#EEF2FF', color: '#6366f1', fontSize: '10px', fontWeight: '900', padding: '5px 15px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-          {poll.is_closed ? 'Voting Closed' : 'Live Voting Room'}
+      <header style={{ borderBottom: '2px solid #0A0A0A', padding: '32px 20px 20px' }}>
+        <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+            <h1 style={{ ...DISPLAY, fontSize: '5rem', color: '#0A0A0A', margin: 0 }}>INDEX.</h1>
+            <div style={{
+              border: '2px solid #0A0A0A',
+              padding: '4px 12px',
+              marginBottom: '8px',
+              ...META,
+              fontSize: '0.6rem',
+              color: '#0A0A0A',
+              backgroundColor: poll.is_closed ? '#0A0A0A' : 'transparent',
+              color: poll.is_closed ? '#F8E98A' : '#0A0A0A',
+            }}>
+              {poll.is_closed ? 'VOTING CLOSED' : 'LIVE VOTE'}
+            </div>
+          </div>
+          {!poll.is_closed && (
+            <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.45)', marginTop: '8px' }}>
+              Pick up to 3 · {myVotes.length}/3 voted
+            </p>
+          )}
         </div>
-        {!poll.is_closed && (
-          <p style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>
-            Pick up to 3 options · {myVotes.length}/3 voted
-          </p>
-        )}
       </header>
 
-      {/* Winner Banner */}
-      {poll.is_closed && winner && (
-        <div style={{ maxWidth: '500px', margin: '20px auto', padding: '0 20px' }}>
-          <div style={{ backgroundColor: '#6366f1', color: '#FFF', padding: '40px 20px', borderRadius: '35px', textAlign: 'center', boxShadow: '0 20px 40px rgba(99, 102, 241, 0.3)' }}>
-            <span style={{ fontSize: '40px' }}>🎊</span>
-            <h2 style={{ fontSize: '14px', fontWeight: '900', textTransform: 'uppercase', margin: '10px 0 5px' }}>The Verdict</h2>
-            <h1 style={{ fontSize: '32px', fontWeight: '900', margin: 0 }}>{winner.name}</h1>
+      <div style={{ maxWidth: '500px', margin: '0 auto', padding: '0 20px' }}>
+
+        {/* Winner Banner */}
+        {poll.is_closed && winner && (
+          <div style={{ margin: '32px 0', border: '2px solid #0A0A0A', backgroundColor: '#0A0A0A', padding: '36px 24px', boxShadow: '6px 6px 0 #0A0A0A' }}>
+            <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(255,255,255,0.45)', margin: '0 0 8px' }}>THE VERDICT</p>
+            <p style={{ ...DISPLAY, fontSize: '3.5rem', color: '#F8E98A', margin: 0 }}>{winner.name}</p>
             {winner.booking_action && (
               <a
                 href={winner.booking_action}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ display: 'inline-block', marginTop: '20px', backgroundColor: '#FFF', color: '#6366f1', fontWeight: '900', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', padding: '12px 28px', borderRadius: '50px', textDecoration: 'none' }}
+                style={{
+                  display: 'inline-block',
+                  marginTop: '20px',
+                  backgroundColor: '#F8E98A',
+                  color: '#0A0A0A',
+                  ...META,
+                  fontSize: '0.7rem',
+                  padding: '10px 24px',
+                  border: '2px solid #F8E98A',
+                  textDecoration: 'none',
+                  boxShadow: '3px 3px 0 rgba(255,255,255,0.2)',
+                }}
               >
-                Book Now →
+                BOOK NOW →
               </a>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Restaurant Options */}
-      <div style={{ maxWidth: '500px', margin: '40px auto 0', padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {poll.restaurants?.map((opt) => {
-          const votes = poll.votes?.[opt.id] || 0;
-          const isWinning = votes > 0 && votes === maxVotes;
-          const isMyVote = myVotes.includes(opt.id);
-          const isMaxed = myVotes.length >= 3 && !isMyVote;
-          const isDisabled = poll.is_closed || isMaxed;
+        {/* Venue Cards */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: poll.is_closed && winner ? '0' : '32px' }}>
+          {poll.restaurants?.map((opt) => {
+            const votes = poll.votes?.[opt.name] || 0;
+            const isWinning = votes > 0 && votes === maxVotes;
+            const isMyVote = myVotes.includes(opt.name);
+            const isMaxed = myVotes.length >= 3 && !isMyVote;
+            const isDisabled = poll.is_closed || isMaxed;
 
-          let btnBg = '#FFF';
-          if (isMyVote) btnBg = '#6366f1';
-          else if (poll.is_closed && isWinning) btnBg = '#6366f1';
-          else if (isDisabled) btnBg = '#F3F4F6';
-
-          const btnTextColor = (isMyVote || (poll.is_closed && isWinning)) ? '#FFF' : '#000';
-          const labelColor = (isMyVote || (poll.is_closed && isWinning)) ? '#FFF' : '#6366f1';
-
-          return (
-            <div
-              key={opt.id}
-              style={{ position: 'relative', height: '280px', borderRadius: '35px', overflow: 'hidden', border: isMyVote ? '5px solid #6366f1' : isWinning ? '5px solid #6366f1' : '2px solid #EEE', transition: '0.3s', opacity: isMaxed ? 0.6 : 1 }}
-            >
-              <img src={opt.hero_image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }} />
-
-              <div style={{ position: 'absolute', bottom: '25px', left: '25px', right: '110px', color: '#FFF' }}>
-                <h3 style={{ fontSize: '22px', fontWeight: '900', margin: 0 }}>{opt.name}</h3>
-                {opt.price_range && <p style={{ fontSize: '12px', opacity: 0.8, marginTop: '5px' }}>{opt.price_range}</p>}
-              </div>
-
-              {/* Vote Button Overlay */}
-              <button
-                onClick={() => vote(opt.id)}
-                disabled={isDisabled}
-                style={{ position: 'absolute', bottom: '25px', right: '25px', width: '80px', height: '60px', borderRadius: '20px', backgroundColor: btnBg, border: 'none', cursor: isDisabled ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 20px rgba(0,0,0,0.2)' }}
+            return (
+              <div
+                key={opt.name}
+                style={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  border: isMyVote ? '5px solid #0A0A0A' : '2px solid #0A0A0A',
+                  boxShadow: isMyVote ? 'none' : '5px 5px 0 #0A0A0A',
+                  transform: isMyVote ? 'translate(5px,5px)' : 'none',
+                  opacity: isMaxed ? 0.5 : 1,
+                  backgroundColor: '#1A1A1A',
+                }}
               >
-                <span style={{ fontSize: '9px', fontWeight: '900', color: labelColor, opacity: (isMyVote || (poll.is_closed && isWinning)) ? 1 : 0.6 }}>
-                  {isMyVote ? 'YOUR VOTE' : 'VOTES'}
-                </span>
-                <span style={{ fontSize: '20px', fontWeight: '900', color: btnTextColor }}>{votes}</span>
-              </button>
+                {/* Image */}
+                <div style={{ height: '280px', position: 'relative' }}>
+                  {opt.hero_image ? (
+                    <>
+                      <img src={opt.hero_image} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="" />
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 55%)' }} />
+                    </>
+                  ) : (
+                    <div style={{ height: '100%', backgroundColor: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <p style={{ ...DISPLAY, fontSize: '1.8rem', color: '#FFF', textAlign: 'center', padding: '0 20px' }}>{opt.name}</p>
+                    </div>
+                  )}
+                </div>
 
-              {isMyVote && !poll.is_closed && (
-                <div style={{ position: 'absolute', top: '20px', left: '20px', backgroundColor: '#6366f1', padding: '5px 12px', borderRadius: '15px', fontSize: '10px', fontWeight: '900', color: '#FFF' }}>✓ YOUR PICK</div>
-              )}
-              {isWinning && !isMyVote && !poll.is_closed && (
-                <div style={{ position: 'absolute', top: '20px', left: '20px', backgroundColor: '#FFD700', padding: '5px 12px', borderRadius: '15px', fontSize: '10px', fontWeight: '900' }}>🏆 LEADING</div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                {/* Info */}
+                <div style={{ position: 'absolute', bottom: '20px', left: '20px', right: '80px', color: '#FFF' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <h3 style={{ ...DISPLAY, fontSize: '1.6rem', margin: 0 }}>{opt.name}</h3>
+                    {opt.price_range && (
+                      <span style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.7rem', opacity: 0.75 }}>{opt.price_range}</span>
+                    )}
+                  </div>
+                  {opt.neighborhood && (
+                    <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.7rem', opacity: 0.7, margin: '2px 0 0' }}>{opt.neighborhood}</p>
+                  )}
+                </div>
 
-      {/* Admin Toggle */}
-      <div style={{ textAlign: 'center', marginTop: '60px', padding: '0 20px' }}>
-        <button
-          onClick={toggleClose}
-          style={{ background: 'none', border: '2px dashed #DDD', padding: '15px 30px', borderRadius: '20px', color: '#AAA', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '1px' }}
-        >
-          {poll.is_closed ? '🔓 Re-open Poll' : '🔒 End Poll & Reveal Winner'}
-        </button>
-      </div>
+                {/* Status badges */}
+                {isMyVote && !poll.is_closed && (
+                  <div style={{ position: 'absolute', top: '16px', left: '16px', backgroundColor: '#F8E98A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#0A0A0A' }}>
+                    ✓ YOUR PICK
+                  </div>
+                )}
+                {isWinning && !poll.is_closed && (
+                  <div style={{ position: 'absolute', top: '16px', left: '16px', backgroundColor: '#0A0A0A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#F8E98A' }}>
+                    LEADING
+                  </div>
+                )}
 
-      {/* Invite Squad URL */}
-      <div style={{ maxWidth: '400px', margin: '40px auto 0', padding: '20px', borderTop: '1px solid #EEE', textAlign: 'center' }}>
-        <p style={{ fontSize: '10px', fontWeight: '900', color: '#BBB', textTransform: 'uppercase', marginBottom: '10px' }}>Invite the squad</p>
-        <div style={{ backgroundColor: '#F3F4F6', padding: '12px', borderRadius: '15px', fontSize: '10px', color: '#999', wordBreak: 'break-all' }}>
-          {typeof window !== 'undefined' ? window.location.href : ''}
+                {/* Vote button */}
+                <button
+                  onClick={() => !isDisabled && vote(opt.name)}
+                  disabled={isDisabled}
+                  style={{
+                    position: 'absolute',
+                    bottom: '20px',
+                    right: '16px',
+                    width: '52px',
+                    height: '52px',
+                    backgroundColor: isMyVote ? '#0A0A0A' : 'rgba(255,255,255,0.92)',
+                    border: '2px solid #0A0A0A',
+                    cursor: isDisabled ? 'default' : 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '1px',
+                  }}
+                >
+                  <span style={{ ...META, fontSize: '0.45rem', color: isMyVote ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }}>
+                    {isMyVote ? 'VOTED' : 'VOTES'}
+                  </span>
+                  <span style={{ ...DISPLAY, fontSize: '1.4rem', color: isMyVote ? '#F8E98A' : '#0A0A0A', lineHeight: 1 }}>{votes}</span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Admin Toggle */}
+        <div style={{ textAlign: 'center', marginTop: '48px' }}>
+          <button
+            onClick={toggleClose}
+            style={{
+              background: 'none',
+              border: '2px dashed rgba(0,0,0,0.25)',
+              padding: '12px 28px',
+              ...META,
+              fontSize: '0.6rem',
+              color: 'rgba(0,0,0,0.4)',
+              cursor: 'pointer',
+            }}
+          >
+            {poll.is_closed ? '↑ RE-OPEN POLL' : '↓ END POLL & REVEAL WINNER'}
+          </button>
+        </div>
+
+        {/* Share URL */}
+        <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '2px solid rgba(0,0,0,0.1)', textAlign: 'center' }}>
+          <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.35)', marginBottom: '10px' }}>INVITE THE SQUAD</p>
+          <div style={{ border: '2px solid rgba(0,0,0,0.15)', padding: '10px 14px', fontSize: '10px', color: 'rgba(0,0,0,0.4)', wordBreak: 'break-all', fontFamily: 'monospace' }}>
+            {typeof window !== 'undefined' ? window.location.href : ''}
+          </div>
         </div>
       </div>
     </div>
