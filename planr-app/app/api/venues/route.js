@@ -21,17 +21,18 @@ export async function GET(req) {
     const activityTypes = parseList(searchParams.get('activity_type'));
     const energyTags = parseList(searchParams.get('energy_tag'));
 
-    if (!neighborhoods.length || !activityTypes.length || !energyTags.length) {
+    // Empty categories are skipped entirely (used by quick-edit chip removal),
+    // but at least one filter must remain.
+    if (!neighborhoods.length && !activityTypes.length && !energyTags.length) {
       return NextResponse.json({ venues: [], error: 'Missing parameters' }, { status: 400 });
     }
 
     // Primary: match any selected neighborhood AND any activity AND any energy
-    const { data: exact, error } = await supabase
-      .from('databaseindex')
-      .select('*')
-      .or(orFilter('neighborhood', neighborhoods))
-      .or(orFilter('activity_type', activityTypes))
-      .or(orFilter('energy_tag', energyTags, true));
+    let exactQuery = supabase.from('databaseindex').select('*');
+    if (neighborhoods.length) exactQuery = exactQuery.or(orFilter('neighborhood', neighborhoods));
+    if (activityTypes.length) exactQuery = exactQuery.or(orFilter('activity_type', activityTypes));
+    if (energyTags.length) exactQuery = exactQuery.or(orFilter('energy_tag', energyTags, true));
+    const { data: exact, error } = await exactQuery;
 
     if (error) {
       return NextResponse.json({ venues: [], error: error.message }, { status: 500 });
@@ -42,11 +43,10 @@ export async function GET(req) {
     }
 
     // Fuzzy fallback: drop energy tags, keep neighborhoods + activities
-    const { data: fallback, error: fallbackError } = await supabase
-      .from('databaseindex')
-      .select('*')
-      .or(orFilter('neighborhood', neighborhoods))
-      .or(orFilter('activity_type', activityTypes));
+    let fallbackQuery = supabase.from('databaseindex').select('*');
+    if (neighborhoods.length) fallbackQuery = fallbackQuery.or(orFilter('neighborhood', neighborhoods));
+    if (activityTypes.length) fallbackQuery = fallbackQuery.or(orFilter('activity_type', activityTypes));
+    const { data: fallback, error: fallbackError } = await fallbackQuery;
 
     if (fallbackError) {
       return NextResponse.json({ venues: [], error: fallbackError.message }, { status: 500 });

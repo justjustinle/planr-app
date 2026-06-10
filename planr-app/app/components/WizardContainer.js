@@ -78,23 +78,39 @@ export default function WizardContainer() {
   const toggleActivity     = toggleTag(setActivityTypes);
   const toggleEnergy       = toggleTag(setEnergyTags);
 
-  const fetchVenues = async () => {
+  const fetchVenues = async (filters) => {
+    const { where = neighborhoods, what = activityTypes, vibe = energyTags } = filters || {};
     setLoading(true);
     setStep(STEP.RESULTS);
     try {
       const params = new URLSearchParams({
-        neighborhood: neighborhoods.join(','),
-        activity_type: activityTypes.join(','),
-        energy_tag: energyTags.join(','),
+        neighborhood: where.join(','),
+        activity_type: what.join(','),
+        energy_tag: vibe.join(','),
       });
       const res  = await fetch(`/api/venues?${params}`);
       const data = await res.json();
       if (data.error) console.error('Venues API error:', data.error);
       setVenues(data.venues || []);
       setFuzzy(!!data.fuzzy);
-      setFuzzyMeta(data.fuzzy ? { requested: energyTags.join(', '), available: data.availableEnergies || [] } : null);
+      setFuzzyMeta(data.fuzzy ? { requested: vibe.join(', '), available: data.availableEnergies || [] } : null);
     } catch (e) { console.error(e); }
     setLoading(false);
+  };
+
+  // Quick-edit chip removal: drop one filter value and re-fetch immediately
+  const removeFilter = (category, value) => {
+    const next = {
+      where: category === 'where' ? neighborhoods.filter(v => v !== value) : neighborhoods,
+      what:  category === 'what'  ? activityTypes.filter(v => v !== value) : activityTypes,
+      vibe:  category === 'vibe'  ? energyTags.filter(v => v !== value)    : energyTags,
+    };
+    // Never remove the last remaining filter — the query needs at least one
+    if (!next.where.length && !next.what.length && !next.vibe.length) return;
+    setNeighborhoods(next.where);
+    setActivityTypes(next.what);
+    setEnergyTags(next.vibe);
+    fetchVenues(next);
   };
 
   const toggleVenue = (venue) => {
@@ -284,7 +300,7 @@ export default function WizardContainer() {
                 </div>
               ))}
             </div>
-            <NextButton enabled={energyTags.length > 0} onClick={fetchVenues} />
+            <NextButton enabled={energyTags.length > 0} onClick={() => fetchVenues()} />
             <BackButton />
           </div>
         )}
@@ -330,9 +346,29 @@ export default function WizardContainer() {
                 )}
 
                 {venues.length === 0 && (
-                  <div className="border-2 border-black bg-white p-10 text-center">
-                    <p style={{ ...DISPLAY, fontSize: '2.5rem', color: '#0A0A0A' }} className="mb-2">DEAD END.</p>
-                    <p className="text-sm" style={{ ...META, color: 'rgba(0,0,0,0.45)', textTransform: 'none' }}>Try a different combination.</p>
+                  <div className="border-2 border-black bg-white p-8" style={{ boxShadow: '5px 5px 0 #0A0A0A' }}>
+                    <p style={{ ...DISPLAY, fontSize: '2.5rem', color: '#0A0A0A' }} className="mb-3">
+                      0 SPOTS MATCH<br />YOUR INDEX.
+                    </p>
+                    <p className="text-xs mb-5" style={{ ...META, color: 'rgba(0,0,0,0.45)' }}>
+                      Drop a filter to widen the search
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        ...neighborhoods.map(v => ({ category: 'where', value: v })),
+                        ...activityTypes.map(v => ({ category: 'what', value: v })),
+                        ...energyTags.map(v => ({ category: 'vibe', value: v })),
+                      ].map(({ category, value }) => (
+                        <button
+                          key={`${category}-${value}`}
+                          onClick={() => removeFilter(category, value)}
+                          className="border-2 border-black bg-black text-white px-3 py-2"
+                          style={{ ...META, fontSize: '0.65rem', cursor: 'pointer', transition: 'none', boxShadow: '3px 3px 0 rgba(0,0,0,0.25)' }}
+                        >
+                          [ ✕ ] {value}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 

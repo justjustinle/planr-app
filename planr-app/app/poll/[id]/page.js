@@ -179,29 +179,45 @@ export default function PollPage({ params }) {
   };
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const inviteText = `Vote on tonight's spot — the clock is ticking, decision locks in 10 minutes! Choose here: ${shareUrl}`;
+
+  // Computed at the millisecond of the click so the minutes are always live
+  const getInviteText = () => {
+    if (phase === 'voting' && timeLeft !== null) {
+      if (timeLeft < 2 * 60 * 1000) {
+        return `CRITICAL TIME. 60 seconds to vote: ${shareUrl}`;
+      }
+      const mins = Math.ceil(timeLeft / 60000);
+      return `Quick! We only have ${mins} minute${mins !== 1 ? 's' : ''} left to lock in tonight's plan. Cast your vote here: ${shareUrl}`;
+    }
+    return `Vote on tonight's spot — the clock is ticking, decision locks in 10 minutes! Choose here: ${shareUrl}`;
+  };
 
   const share = () => {
     if (navigator.share) {
-      navigator.share({ title: 'INDEX.', text: inviteText }).catch(() => {});
+      navigator.share({ title: 'INDEX.', text: getInviteText() }).catch(() => {});
     } else {
       copyInvite();
     }
   };
 
   const copyInvite = () => {
-    navigator.clipboard.writeText(inviteText).then(() => {
+    navigator.clipboard.writeText(getInviteText()).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   };
 
-  const shareVerdict = (venueName) => {
-    const text = `Verdict is in! We are heading to ${venueName} tonight: ${shareUrl}`;
+  const broadcastVerdict = (venue) => {
+    const text = `The Verdict is locked. ${venue.name} wins tonight. See you there: ${venue.google_maps || shareUrl}`;
     navigator.clipboard.writeText(text).then(() => {
       setVerdictCopied(true);
       setTimeout(() => setVerdictCopied(false), 2000);
     });
+  };
+
+  const addToCalendar = (venue) => {
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`INDEX. — ${venue.name}`)}&details=${encodeURIComponent(`The squad voted: ${venue.name} tonight.\n${venue.google_maps || shareUrl}`)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   // Deadlock recovery: host hand-picks the winner after a zero-vote close
@@ -260,6 +276,7 @@ export default function PollPage({ params }) {
                   {String(Math.floor(timeLeft / 60000)).padStart(2, '0')}:{String(Math.floor((timeLeft % 60000) / 1000)).padStart(2, '0')}
                 </div>
               )}
+              {phase !== 'results' && <PresenceBadge />}
             </div>
           </div>
           {phase === 'voting' && (
@@ -277,10 +294,6 @@ export default function PollPage({ params }) {
         ══════════════════════════════════════ */}
         {phase === 'lobby' && (
           <div style={{ marginTop: '32px' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-              <PresenceBadge />
-            </div>
-
             <h2 style={{ ...DISPLAY, fontSize: '4rem', color: '#0A0A0A', textAlign: 'center', margin: '0 0 8px' }}>
               RALLY THE<br />SQUAD.
             </h2>
@@ -426,22 +439,33 @@ export default function PollPage({ params }) {
                   <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', marginTop: '8px', lineHeight: 1.4 }}>{winner.pro_tip}</p>
                 )}
                 <BookingAction action={winner.booking_action} />
-                <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <LinkButtons venue={winner} />
-                  <button
-                    onClick={() => shareVerdict(winner.name)}
-                    style={{
-                      ...META, fontSize: '0.55rem', fontWeight: 700, marginTop: '10px',
-                      color: verdictCopied ? '#0A0A0A' : '#F8E98A',
-                      backgroundColor: verdictCopied ? '#F8E98A' : 'transparent',
-                      padding: '4px 10px', border: '1px solid #F8E98A',
-                      cursor: 'pointer', transition: 'none',
-                    }}
-                  >
-                    {verdictCopied ? '✓ COPIED!' : 'SHARE THE VERDICT'}
-                  </button>
-                </div>
+                <LinkButtons venue={winner} />
               </div>
+            </div>
+
+            {/* POST-VERDICT UTILITY DOCK */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '32px' }}>
+              <button
+                onClick={() => broadcastVerdict(winner)}
+                style={{
+                  flex: 1, border: '2px solid #0A0A0A', padding: '16px 10px', cursor: 'pointer',
+                  backgroundColor: verdictCopied ? '#0A0A0A' : '#FFF',
+                  boxShadow: '4px 4px 0 #0A0A0A', transition: 'none',
+                }}
+              >
+                <span style={{ ...DISPLAY, fontSize: '0.95rem', color: verdictCopied ? '#F8E98A' : '#0A0A0A' }}>
+                  {verdictCopied ? '✓ COPIED!' : 'BROADCAST TO SQUAD'}
+                </span>
+              </button>
+              <button
+                onClick={() => addToCalendar(winner)}
+                style={{
+                  flex: 1, border: '2px solid #0A0A0A', padding: '16px 10px', cursor: 'pointer',
+                  backgroundColor: '#FFF', boxShadow: '4px 4px 0 #0A0A0A', transition: 'none',
+                }}
+              >
+                <span style={{ ...DISPLAY, fontSize: '0.95rem', color: '#0A0A0A' }}>ADD TO CALENDAR</span>
+              </button>
             </div>
 
             {/* RUNNER-UP LEADERBOARD */}
@@ -501,10 +525,7 @@ export default function PollPage({ params }) {
         ══════════════════════════════════════ */}
         {phase === 'voting' && (
           <>
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
-              <PresenceBadge />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '32px' }}>
               {(poll.restaurants || []).map((opt) => {
                 const optVotes = votes[opt.name] || 0;
                 const isWinning = optVotes > 0 && optVotes === maxVotes;
