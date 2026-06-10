@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -77,6 +78,7 @@ function LinkButtons({ venue }) {
 }
 
 export default function PollPage({ params }) {
+  const router = useRouter();
   const [poll, setPoll] = useState(null);
   const [myVotes, setMyVotes] = useState([]);
   const [voting, setVoting] = useState(new Set());
@@ -85,6 +87,7 @@ export default function PollPage({ params }) {
   const [online, setOnline] = useState(1);
   const [isHost, setIsHost] = useState(false);
   const [verdictCopied, setVerdictCopied] = useState(false);
+  const channelRef = useRef(null);
   const pollId = params.id;
 
   useEffect(() => {
@@ -98,16 +101,18 @@ export default function PollPage({ params }) {
     }
     getInitialPoll();
 
-    // One channel for both DB changes and presence
     const channel = supabase.channel(`poll-${pollId}`, {
       config: { presence: { key: `guest-${Math.random().toString(36).slice(2, 9)}` } },
-    })
+    });
+    channelRef.current = channel;
+
+    channel
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'polls', filter: `id=eq.${pollId}` },
         (payload) => setPoll(payload.new)
       )
       .on('presence', { event: 'sync' }, () => {
-        setOnline(Math.max(1, Object.keys(channel.presenceState()).length));
+        setOnline(Math.max(1, Object.keys(channelRef.current.presenceState()).length));
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') channel.track({ joined_at: Date.now() });
@@ -257,7 +262,10 @@ export default function PollPage({ params }) {
       <header style={{ borderBottom: '2px solid #0A0A0A', padding: '32px 20px 20px' }}>
         <div style={{ maxWidth: '500px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <h1 style={{ ...DISPLAY, fontSize: '5rem', color: '#0A0A0A', margin: 0 }}>INDEX.</h1>
+            <h1
+              onClick={() => router.push('/')}
+              style={{ ...DISPLAY, fontSize: '5rem', color: '#0A0A0A', margin: 0, cursor: 'pointer' }}
+            >INDEX.</h1>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', marginBottom: '8px' }}>
               <div style={{
                 border: '2px solid #0A0A0A', padding: '4px 12px', ...META, fontSize: '0.6rem',
@@ -269,7 +277,7 @@ export default function PollPage({ params }) {
               {phase === 'voting' && timeLeft !== null && (
                 <div style={{
                   border: `2px solid ${timeLeft < 60000 ? '#FF3B30' : '#0A0A0A'}`,
-                  padding: '4px 12px', ...META, fontSize: '0.6rem',
+                  padding: '6px 16px', ...DISPLAY, fontSize: '1.4rem',
                   backgroundColor: timeLeft < 60000 ? '#FF3B30' : 'transparent',
                   color: timeLeft < 60000 ? '#FFF' : '#0A0A0A',
                 }}>
@@ -589,34 +597,28 @@ export default function PollPage({ params }) {
             {isHost && (
               <div style={{ textAlign: 'center', marginTop: '48px' }}>
                 <button onClick={endPoll} style={{
-                  background: 'none', border: '2px dashed rgba(0,0,0,0.25)', padding: '12px 28px',
-                  ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', cursor: 'pointer',
+                  backgroundColor: '#FFF', border: '2px solid #0A0A0A', padding: '12px 28px',
+                  ...META, fontWeight: 900, fontSize: '0.6rem', color: '#0A0A0A', cursor: 'pointer',
+                  boxShadow: '4px 4px 0 #0A0A0A',
                 }}>
-                  ↓ END POLL & REVEAL WINNER
+                  END POLL & REVEAL WINNER
                 </button>
               </div>
             )}
-
-            {/* Share stays available mid-vote for stragglers */}
-            <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '2px solid rgba(0,0,0,0.15)' }}>
-              <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.35)', marginBottom: '10px', textAlign: 'center' }}>INVITE THE SQUAD</p>
-              <button
-                onClick={copyInvite}
-                style={{
-                  width: '100%', border: '2px solid #0A0A0A', padding: '14px 16px',
-                  backgroundColor: copied ? '#0A0A0A' : '#FFF',
-                  cursor: 'pointer', textAlign: 'center', display: 'block',
-                  boxShadow: '4px 4px 0 #0A0A0A', transition: 'none',
-                }}
-              >
-                {copied ? (
-                  <span style={{ ...DISPLAY, fontSize: '1rem', color: '#F8E98A' }}>✓ COPIED TO WHATSAPP!</span>
-                ) : (
-                  <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'rgba(0,0,0,0.5)', wordBreak: 'break-all' }}>{shareUrl}</span>
-                )}
-              </button>
-            </div>
           </>
+        )}
+        {isHost && (
+          <div style={{ textAlign: 'center', marginTop: '48px', paddingTop: '24px', borderTop: '2px solid rgba(0,0,0,0.15)' }}>
+            <button
+              onClick={() => router.push('/')}
+              style={{
+                border: '2px solid #0A0A0A', padding: '14px 32px', cursor: 'pointer',
+                backgroundColor: '#0A0A0A', transition: 'none',
+              }}
+            >
+              <span style={{ ...DISPLAY, fontSize: '1.2rem', color: '#F8E98A' }}>START AGAIN →</span>
+            </button>
+          </div>
         )}
       </div>
     </div>
