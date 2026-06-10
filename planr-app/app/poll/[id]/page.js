@@ -312,14 +312,16 @@ export default function PollPage({ params }) {
 
             {/* Share — the primary action in the lobby */}
             <button
-              onClick={share}
+              onClick={copyInvite}
               style={{
-                width: '100%', backgroundColor: '#0A0A0A', color: '#F8E98A',
+                width: '100%', backgroundColor: copied ? '#2A5A2A' : '#0A0A0A', color: '#F8E98A',
                 border: '2px solid #0A0A0A', padding: '20px', cursor: 'pointer',
                 boxShadow: '5px 5px 0 rgba(0,0,0,0.3)', transition: 'none',
               }}
             >
-              <span style={{ ...DISPLAY, fontSize: '1.6rem' }}>SEND THE LINK →</span>
+              <span style={{ ...DISPLAY, fontSize: '1.6rem' }}>
+                {copied ? '✓ LINK COPIED!' : 'SEND THE LINK →'}
+              </span>
             </button>
 
             <button
