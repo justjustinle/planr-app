@@ -123,16 +123,83 @@ export default function VenueCard({ venue, isSelected, onToggle }) {
         right: '72px',
         color: '#FFF',
       }}>
-        <h3 style={{ ...DISPLAY, fontSize: '1.6rem', margin: 0 }}>{venue.name}</h3>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+          <h3 style={{ ...DISPLAY, fontSize: '1.6rem', margin: 0 }}>{venue.name}</h3>
+          {venue.price_range && (
+            <span style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.7rem', opacity: 0.75 }}>
+              {venue.price_range}
+            </span>
+          )}
+        </div>
         <p style={{
           fontFamily: 'Barlow, system-ui, sans-serif',
           fontSize: '0.7rem',
           opacity: 0.7,
-          marginTop: '4px',
+          marginTop: '2px',
           marginBottom: 0,
         }}>
-          {venue.neighborhood}{venue.logistics_badge ? ` · ${venue.logistics_badge}` : ''}
+          {venue.neighborhood}
         </p>
+        {venue.pro_tip && (
+          <p style={{
+            fontFamily: 'Barlow, system-ui, sans-serif',
+            fontSize: '0.65rem',
+            opacity: 0.55,
+            marginTop: '3px',
+            marginBottom: 0,
+            fontStyle: 'italic',
+          }}>
+            {venue.pro_tip}
+          </p>
+        )}
+        {(venue.menu_url || venue.google_maps) && (
+          <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+            {venue.menu_url && (
+              <a
+                href={venue.menu_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{
+                  fontFamily: 'Barlow, system-ui, sans-serif',
+                  fontSize: '0.55rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: '#0A0A0A',
+                  backgroundColor: 'rgba(255,255,255,0.9)',
+                  padding: '3px 8px',
+                  textDecoration: 'none',
+                  border: '1px solid rgba(0,0,0,0.15)',
+                }}
+              >
+                Menu
+              </a>
+            )}
+            {venue.google_maps && (
+              <a
+                href={venue.google_maps}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{
+                  fontFamily: 'Barlow, system-ui, sans-serif',
+                  fontSize: '0.55rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: '#0A0A0A',
+                  backgroundColor: 'rgba(255,255,255,0.9)',
+                  padding: '3px 8px',
+                  textDecoration: 'none',
+                  border: '1px solid rgba(0,0,0,0.15)',
+                }}
+              >
+                Maps
+              </a>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Select button */}

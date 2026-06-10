@@ -88,6 +88,16 @@ export default function PollPage({ params }) {
             <span style={{ fontSize: '40px' }}>🎊</span>
             <h2 style={{ fontSize: '14px', fontWeight: '900', textTransform: 'uppercase', margin: '10px 0 5px' }}>The Verdict</h2>
             <h1 style={{ fontSize: '32px', fontWeight: '900', margin: 0 }}>{winner.name}</h1>
+            {winner.booking_action && (
+              <a
+                href={winner.booking_action}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-block', marginTop: '20px', backgroundColor: '#FFF', color: '#6366f1', fontWeight: '900', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', padding: '12px 28px', borderRadius: '50px', textDecoration: 'none' }}
+              >
+                Book Now →
+              </a>
+            )}
           </div>
         </div>
       )}
@@ -114,12 +124,12 @@ export default function PollPage({ params }) {
               key={opt.id}
               style={{ position: 'relative', height: '280px', borderRadius: '35px', overflow: 'hidden', border: isMyVote ? '5px solid #6366f1' : isWinning ? '5px solid #6366f1' : '2px solid #EEE', transition: '0.3s', opacity: isMaxed ? 0.6 : 1 }}
             >
-              <img src={opt.image_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+              <img src={opt.hero_image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }} />
 
               <div style={{ position: 'absolute', bottom: '25px', left: '25px', right: '110px', color: '#FFF' }}>
                 <h3 style={{ fontSize: '22px', fontWeight: '900', margin: 0 }}>{opt.name}</h3>
-                <p style={{ fontSize: '12px', opacity: 0.8, marginTop: '5px' }}>{opt.rating} ★ • {opt.price || '$$'}</p>
+                {opt.price_range && <p style={{ fontSize: '12px', opacity: 0.8, marginTop: '5px' }}>{opt.price_range}</p>}
               </div>
 
               {/* Vote Button Overlay */}
