@@ -14,7 +14,7 @@ const STEP = { WHERE: 1, WHAT: 2, WHO: 3, RESULTS: 4 };
 
 const STEP_THEME = {
   [STEP.WHERE]:   { bg: '#F8E98A', fg: '#0A0A0A' },
-  [STEP.WHAT]:    { bg: '#7188F0', fg: '#0A0A0A' },
+  [STEP.WHAT]:    { bg: '#9CAF88', fg: '#0A0A0A' },
   [STEP.WHO]:     { bg: '#F8976F', fg: '#0A0A0A' },
   [STEP.RESULTS]: { bg: '#F8E98A', fg: '#0A0A0A' },
 };
