@@ -81,6 +81,7 @@ export default function WizardContainer() {
     try {
       const res  = await fetch(`/api/venues?neighborhood=${neighborhood}&activity_type=${activityType}&energy_tag=${value}`);
       const data = await res.json();
+      if (data.error) console.error('Venues API error:', data.error);
       setVenues(data.venues || []);
       setFuzzy(!!data.fuzzy);
       setFuzzyMeta(data.fuzzy ? { requested: value, available: data.availableEnergies || [] } : null);
