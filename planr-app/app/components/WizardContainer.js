@@ -109,8 +109,7 @@ export default function WizardContainer() {
     if (!selected.length || pollCreating) return;
     setPollCreating(true);
     const { data, error } = await supabase.from('polls').insert([{
-      restaurants: selected, location: neighborhoods.join(', '),
-      votes: {}, is_closed: false, activity_type: activityTypes.join(', '),
+      restaurants: selected, votes: {}, is_closed: false,
     }]).select();
     if (!error) router.push(`/poll/${data[0].id}`);
     else setPollCreating(false);
