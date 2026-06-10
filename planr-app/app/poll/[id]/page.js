@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -23,6 +23,15 @@ const META = {
 };
 
 const ORDINAL = ['', '1ST', '2ND', '3RD', '4TH', '5TH'];
+const VOTE_WINDOW_MS = 10 * 60 * 1000;
+
+// Vote tallies live in the votes jsonb alongside a reserved __meta key
+// (started_at). Strip it before any counting or sorting.
+const tallies = (votes) => {
+  const t = { ...(votes || {}) };
+  delete t.__meta;
+  return t;
+};
 
 // Sort venues by votes desc; tie-break alphabetically by name
 function sortedByVotes(restaurants, votes) {
@@ -48,16 +57,15 @@ function BookingAction({ action }) {
       textDecoration: 'none', boxShadow: '3px 3px 0 rgba(255,255,255,0.15)',
     }}>BOOK NOW →</a>
   );
-  // Phone number
   const digits = trimmed.replace(/\s/g, '');
   return <span style={style}>Please call: <a href={`tel:${digits}`} style={{ color: '#F8E98A', textDecoration: 'none' }}>{trimmed}</a></span>;
 }
 
-function LinkButtons({ venue, dark = false }) {
+function LinkButtons({ venue }) {
   if (!venue.menu_url && !venue.google_maps) return null;
   const btnStyle = {
     ...META, fontSize: '0.55rem', fontWeight: 700,
-    color: '#0A0A0A', backgroundColor: dark ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.9)',
+    color: '#0A0A0A', backgroundColor: 'rgba(255,255,255,0.9)',
     padding: '4px 10px', textDecoration: 'none', border: '1px solid rgba(0,0,0,0.15)',
   };
   return (
@@ -74,11 +82,14 @@ export default function PollPage({ params }) {
   const [voting, setVoting] = useState(new Set());
   const [timeLeft, setTimeLeft] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [online, setOnline] = useState(1);
+  const [isHost, setIsHost] = useState(false);
   const pollId = params.id;
 
   useEffect(() => {
     const stored = localStorage.getItem(`index_votes_${pollId}`);
     if (stored) setMyVotes(JSON.parse(stored));
+    setIsHost(localStorage.getItem(`index_host_${pollId}`) === '1');
 
     async function getInitialPoll() {
       const { data } = await supabase.from('polls').select('*').eq('id', pollId).single();
@@ -86,20 +97,31 @@ export default function PollPage({ params }) {
     }
     getInitialPoll();
 
-    const channel = supabase.channel(`poll-${pollId}`)
+    // One channel for both DB changes and presence
+    const channel = supabase.channel(`poll-${pollId}`, {
+      config: { presence: { key: `guest-${Math.random().toString(36).slice(2, 9)}` } },
+    })
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'polls', filter: `id=eq.${pollId}` },
         (payload) => setPoll(payload.new)
       )
-      .subscribe();
+      .on('presence', { event: 'sync' }, () => {
+        setOnline(Math.max(1, Object.keys(channel.presenceState()).length));
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') channel.track({ joined_at: Date.now() });
+      });
 
     return () => { supabase.removeChannel(channel); };
   }, [pollId]);
 
-  // Countdown: 10 min from poll.created_at; auto-close on expiry
+  const startedAt = poll?.votes?.__meta?.started_at || null;
+  const phase = !poll ? 'loading' : poll.is_closed ? 'results' : startedAt ? 'voting' : 'lobby';
+
+  // Countdown: 10 min from when the host starts the vote; auto-close on expiry
   useEffect(() => {
-    if (!poll || poll.is_closed) { setTimeLeft(null); return; }
-    const endsAt = new Date(poll.created_at).getTime() + 10 * 60 * 1000;
+    if (phase !== 'voting') { setTimeLeft(null); return; }
+    const endsAt = new Date(startedAt).getTime() + VOTE_WINDOW_MS;
     const tick = () => {
       const rem = endsAt - Date.now();
       if (rem <= 0) {
@@ -112,10 +134,18 @@ export default function PollPage({ params }) {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [poll?.created_at, poll?.is_closed, pollId]);
+  }, [phase, startedAt, pollId]);
+
+  const startVote = async () => {
+    const { data: fresh } = await supabase.from('polls').select('votes').eq('id', pollId).single();
+    const votes = fresh?.votes || {};
+    await supabase.from('polls').update({
+      votes: { ...votes, __meta: { ...(votes.__meta || {}), started_at: new Date().toISOString() } },
+    }).eq('id', pollId);
+  };
 
   const vote = async (optionName) => {
-    if (poll?.is_closed || voting.has(optionName)) return;
+    if (phase !== 'voting' || voting.has(optionName)) return;
     const alreadyVoted = myVotes.includes(optionName);
     if (!alreadyVoted && myVotes.length >= 3) return;
 
@@ -133,33 +163,57 @@ export default function PollPage({ params }) {
     setVoting(prev => { const s = new Set(prev); s.delete(optionName); return s; });
   };
 
-  const toggleClose = async () => {
-    await supabase.from('polls').update({ is_closed: !poll?.is_closed }).eq('id', pollId);
+  const endPoll = async () => {
+    await supabase.from('polls').update({ is_closed: true }).eq('id', pollId);
+  };
+
+  const reopenPoll = async () => {
+    // Re-opening restarts the 10-minute clock so it doesn't instantly re-close
+    const { data: fresh } = await supabase.from('polls').select('votes').eq('id', pollId).single();
+    const votes = fresh?.votes || {};
+    await supabase.from('polls').update({
+      is_closed: false,
+      votes: { ...votes, __meta: { ...(votes.__meta || {}), started_at: new Date().toISOString() } },
+    }).eq('id', pollId);
+  };
+
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+  const share = () => {
+    const text = `Vote on tonight's spot — you've got 10 minutes once it starts:`;
+    if (navigator.share) {
+      navigator.share({ title: 'INDEX.', text, url: shareUrl }).catch(() => {});
+    } else {
+      copyUrl();
+    }
   };
 
   const copyUrl = () => {
-    const url = typeof window !== 'undefined' ? window.location.href : '';
-    navigator.clipboard.writeText(url).then(() => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   };
 
-  if (!poll) return (
+  if (phase === 'loading') return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F8E98A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ ...DISPLAY, fontSize: '3rem', color: '#0A0A0A' }}>LOADING…</p>
     </div>
   );
 
-  const votes = poll.votes || {};
+  const votes = tallies(poll.votes);
   const ranked = sortedByVotes(poll.restaurants, votes);
   const winner = ranked[0];
   const runnerUps = ranked.slice(1, 4);
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const voteValues = Object.values(votes);
+  const maxVotes = voteValues.length > 0 ? Math.max(...voteValues) : 0;
 
-  // Live voting: max votes + leading venue
-  const voteEntries = Object.entries(votes);
-  const maxVotes = voteEntries.length > 0 ? Math.max(...voteEntries.map(e => e[1])) : 0;
+  const PresenceBadge = () => (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '2px solid #0A0A0A', padding: '4px 12px', backgroundColor: '#FFF' }}>
+      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22C55E', display: 'inline-block' }} className="animate-pulse" />
+      <span style={{ ...META, fontSize: '0.6rem', color: '#0A0A0A' }}>{online} IN THE ROOM</span>
+    </div>
+  );
 
   return (
     <div style={{ backgroundColor: '#F8E98A', minHeight: '100vh', paddingBottom: '120px' }}>
@@ -172,12 +226,12 @@ export default function PollPage({ params }) {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', marginBottom: '8px' }}>
               <div style={{
                 border: '2px solid #0A0A0A', padding: '4px 12px', ...META, fontSize: '0.6rem',
-                backgroundColor: poll.is_closed ? '#0A0A0A' : 'transparent',
-                color: poll.is_closed ? '#F8E98A' : '#0A0A0A',
+                backgroundColor: phase === 'results' ? '#0A0A0A' : 'transparent',
+                color: phase === 'results' ? '#F8E98A' : '#0A0A0A',
               }}>
-                {poll.is_closed ? 'VOTING CLOSED' : 'LIVE VOTE'}
+                {phase === 'results' ? 'VOTING CLOSED' : phase === 'voting' ? 'LIVE VOTE' : 'THE LOBBY'}
               </div>
-              {!poll.is_closed && timeLeft !== null && (
+              {phase === 'voting' && timeLeft !== null && (
                 <div style={{
                   border: `2px solid ${timeLeft < 60000 ? '#FF3B30' : '#0A0A0A'}`,
                   padding: '4px 12px', ...META, fontSize: '0.6rem',
@@ -189,7 +243,7 @@ export default function PollPage({ params }) {
               )}
             </div>
           </div>
-          {!poll.is_closed && (
+          {phase === 'voting' && (
             <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.45)', marginTop: '8px' }}>
               Pick up to 3 · {myVotes.length}/3 voted
             </p>
@@ -200,9 +254,85 @@ export default function PollPage({ params }) {
       <div style={{ maxWidth: '500px', margin: '0 auto', padding: '0 20px' }}>
 
         {/* ══════════════════════════════════════
+            LOBBY — rally the squad before the clock starts
+        ══════════════════════════════════════ */}
+        {phase === 'lobby' && (
+          <div style={{ marginTop: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+              <PresenceBadge />
+            </div>
+
+            <h2 style={{ ...DISPLAY, fontSize: '4rem', color: '#0A0A0A', textAlign: 'center', margin: '0 0 8px' }}>
+              RALLY THE<br />SQUAD.
+            </h2>
+            <p style={{ ...META, fontSize: '0.65rem', color: 'rgba(0,0,0,0.5)', textAlign: 'center', margin: '0 0 32px', lineHeight: 1.8 }}>
+              {poll.restaurants?.length || 0} spots are on the ballot.<br />
+              The clock only starts when the host says go.
+            </p>
+
+            {/* Share — the primary action in the lobby */}
+            <button
+              onClick={share}
+              style={{
+                width: '100%', backgroundColor: '#0A0A0A', color: '#F8E98A',
+                border: '2px solid #0A0A0A', padding: '20px', cursor: 'pointer',
+                boxShadow: '5px 5px 0 rgba(0,0,0,0.3)', transition: 'none',
+              }}
+            >
+              <span style={{ ...DISPLAY, fontSize: '1.6rem' }}>SEND THE LINK →</span>
+            </button>
+
+            <button
+              onClick={copyUrl}
+              style={{
+                width: '100%', marginTop: '12px', border: '2px solid #0A0A0A', padding: '12px 16px',
+                backgroundColor: copied ? '#0A0A0A' : '#FFF', cursor: 'pointer', textAlign: 'center',
+                transition: 'none',
+              }}
+            >
+              {copied ? (
+                <span style={{ ...DISPLAY, fontSize: '0.9rem', color: '#F8E98A' }}>✓ COPIED TO CLIPBOARD!</span>
+              ) : (
+                <span style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.5)', wordBreak: 'break-all' }}>{shareUrl}</span>
+              )}
+            </button>
+
+            {/* Ballot preview — builds anticipation without enabling votes */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '36px' }}>
+              <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', margin: 0 }}>ON THE BALLOT</p>
+              {(poll.restaurants || []).map(opt => (
+                <div key={opt.name} style={{ border: '2px solid #0A0A0A', backgroundColor: '#FFF', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ ...DISPLAY, fontSize: '1.2rem', color: '#0A0A0A' }}>{opt.name}</span>
+                  {opt.price_range && <span style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.7rem', color: 'rgba(0,0,0,0.45)' }}>{opt.price_range}</span>}
+                </div>
+              ))}
+            </div>
+
+            {/* Host start CTA / guest waiting state */}
+            {isHost ? (
+              <button
+                onClick={startVote}
+                style={{
+                  width: '100%', marginTop: '36px', backgroundColor: '#FFF', color: '#0A0A0A',
+                  border: '2px solid #0A0A0A', padding: '20px', cursor: 'pointer',
+                  boxShadow: '5px 5px 0 #0A0A0A', transition: 'none',
+                }}
+              >
+                <span style={{ ...DISPLAY, fontSize: '1.6rem' }}>START THE VOTE</span>
+                <span style={{ ...META, fontSize: '0.55rem', display: 'block', marginTop: '6px', color: 'rgba(0,0,0,0.45)' }}>10 MINUTES ON THE CLOCK</span>
+              </button>
+            ) : (
+              <p className="animate-pulse" style={{ ...META, fontSize: '0.65rem', color: 'rgba(0,0,0,0.45)', textAlign: 'center', marginTop: '36px' }}>
+                WAITING FOR THE HOST TO START…
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════
             POST-VOTE RESULTS VIEW
         ══════════════════════════════════════ */}
-        {poll.is_closed && winner && (
+        {phase === 'results' && winner && (
           <>
             {/* THE VERDICT */}
             <div style={{ margin: '32px 0 24px', backgroundColor: '#0A0A0A', border: '2px solid #0A0A0A', boxShadow: '6px 6px 0 rgba(0,0,0,0.35)', overflow: 'hidden' }}>
@@ -251,12 +381,10 @@ export default function PollPage({ params }) {
                             <p style={{ ...DISPLAY, fontSize: '1.6rem', color: '#FFF', textAlign: 'center', padding: '0 16px' }}>{opt.name}</p>
                           </div>
                         )}
-                        {/* Venue info */}
                         <div style={{ position: 'absolute', bottom: '14px', left: '14px', right: '110px', color: '#FFF' }}>
                           <p style={{ ...DISPLAY, fontSize: '1.3rem', margin: 0 }}>{opt.name}</p>
                           {opt.price_range && <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.65rem', opacity: 0.7, margin: '2px 0 0' }}>{opt.price_range}</p>}
                         </div>
-                        {/* Rank + vote badges — bottom right */}
                         <div style={{ position: 'absolute', bottom: '14px', right: '14px', display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'flex-end' }}>
                           <div style={{ backgroundColor: '#FFF', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.6rem', color: '#0A0A0A' }}>
                             {ORDINAL[rank]}
@@ -271,108 +399,121 @@ export default function PollPage({ params }) {
                 </div>
               </>
             )}
+
+            {isHost && (
+              <div style={{ textAlign: 'center', marginTop: '8px' }}>
+                <button onClick={reopenPoll} style={{
+                  background: 'none', border: '2px dashed rgba(0,0,0,0.25)', padding: '12px 28px',
+                  ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', cursor: 'pointer',
+                }}>
+                  ↑ RE-OPEN POLL (RESTARTS THE CLOCK)
+                </button>
+              </div>
+            )}
           </>
         )}
 
         {/* ══════════════════════════════════════
             LIVE VOTING SCOREBOARD
         ══════════════════════════════════════ */}
-        {!poll.is_closed && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '32px' }}>
-            {(poll.restaurants || []).map((opt) => {
-              const optVotes = votes[opt.name] || 0;
-              const isWinning = optVotes > 0 && optVotes === maxVotes;
-              const isMyVote = myVotes.includes(opt.name);
-              const isMaxed = myVotes.length >= 3 && !isMyVote;
-              const isDisabled = isMaxed || voting.has(opt.name);
+        {phase === 'voting' && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+              <PresenceBadge />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '24px' }}>
+              {(poll.restaurants || []).map((opt) => {
+                const optVotes = votes[opt.name] || 0;
+                const isWinning = optVotes > 0 && optVotes === maxVotes;
+                const isMyVote = myVotes.includes(opt.name);
+                const isMaxed = myVotes.length >= 3 && !isMyVote;
+                const isDisabled = isMaxed || voting.has(opt.name);
 
-              return (
-                <div key={opt.name} style={{
-                  position: 'relative', overflow: 'hidden', backgroundColor: '#1A1A1A',
-                  border: isMyVote ? '5px solid #0A0A0A' : '2px solid #0A0A0A',
-                  boxShadow: isMyVote ? 'none' : '5px 5px 0 #0A0A0A',
-                  transform: isMyVote ? 'translate(5px,5px)' : 'none',
-                  opacity: isMaxed ? 0.5 : 1,
-                }}>
-                  <div style={{ height: '280px', position: 'relative' }}>
-                    {opt.hero_image ? (
-                      <>
-                        <img src={opt.hero_image} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="" />
-                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 55%)' }} />
-                      </>
-                    ) : (
-                      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <p style={{ ...DISPLAY, fontSize: '1.8rem', color: '#FFF', textAlign: 'center', padding: '0 20px' }}>{opt.name}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Info overlay */}
-                  <div style={{ position: 'absolute', bottom: '20px', left: '20px', right: '80px', color: '#FFF' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                      <h3 style={{ ...DISPLAY, fontSize: '1.6rem', margin: 0 }}>{opt.name}</h3>
-                      {opt.price_range && <span style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.7rem', opacity: 0.75 }}>{opt.price_range}</span>}
-                    </div>
-                    {opt.pro_tip && (
-                      <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.72rem', opacity: 0.9, marginTop: '4px', marginBottom: 0, fontStyle: 'italic', lineHeight: 1.3, textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
-                        {opt.pro_tip}
-                      </p>
-                    )}
-                    <LinkButtons venue={opt} />
-                  </div>
-
-                  {/* Status badges */}
-                  <div style={{ position: 'absolute', top: '16px', left: '16px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    {isWinning && <div style={{ backgroundColor: '#0A0A0A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#F8E98A' }}>LEADING</div>}
-                    {isMyVote && <div style={{ backgroundColor: '#F8E98A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#0A0A0A' }}>✓ YOUR PICK</div>}
-                  </div>
-
-                  {/* Vote button */}
-                  <button onClick={() => !isDisabled && vote(opt.name)} disabled={isDisabled} style={{
-                    position: 'absolute', bottom: '20px', right: '16px', width: '52px', height: '52px',
-                    backgroundColor: isMyVote ? '#0A0A0A' : 'rgba(255,255,255,0.92)',
-                    border: '2px solid #0A0A0A', cursor: isDisabled ? 'default' : 'pointer',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px',
+                return (
+                  <div key={opt.name} style={{
+                    position: 'relative', overflow: 'hidden', backgroundColor: '#1A1A1A',
+                    border: isMyVote ? '5px solid #0A0A0A' : '2px solid #0A0A0A',
+                    boxShadow: isMyVote ? 'none' : '5px 5px 0 #0A0A0A',
+                    transform: isMyVote ? 'translate(5px,5px)' : 'none',
+                    opacity: isMaxed ? 0.5 : 1,
                   }}>
-                    <span style={{ ...META, fontSize: '0.45rem', color: isMyVote ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }}>{isMyVote ? 'VOTED' : 'VOTES'}</span>
-                    <span style={{ ...DISPLAY, fontSize: '1.4rem', color: isMyVote ? '#F8E98A' : '#0A0A0A', lineHeight: 1 }}>{optVotes}</span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                    <div style={{ height: '280px', position: 'relative' }}>
+                      {opt.hero_image ? (
+                        <>
+                          <img src={opt.hero_image} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="" />
+                          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 55%)' }} />
+                        </>
+                      ) : (
+                        <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <p style={{ ...DISPLAY, fontSize: '1.8rem', color: '#FFF', textAlign: 'center', padding: '0 20px' }}>{opt.name}</p>
+                        </div>
+                      )}
+                    </div>
 
-        {/* ── ADMIN TOGGLE ── */}
-        <div style={{ textAlign: 'center', marginTop: '48px' }}>
-          <button onClick={toggleClose} style={{
-            background: 'none', border: '2px dashed rgba(0,0,0,0.25)', padding: '12px 28px',
-            ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', cursor: 'pointer',
-          }}>
-            {poll.is_closed ? '↑ RE-OPEN POLL' : '↓ END POLL & REVEAL WINNER'}
-          </button>
-        </div>
+                    <div style={{ position: 'absolute', bottom: '20px', left: '20px', right: '80px', color: '#FFF' }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                        <h3 style={{ ...DISPLAY, fontSize: '1.6rem', margin: 0 }}>{opt.name}</h3>
+                        {opt.price_range && <span style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.7rem', opacity: 0.75 }}>{opt.price_range}</span>}
+                      </div>
+                      {opt.pro_tip && (
+                        <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.72rem', opacity: 0.9, marginTop: '4px', marginBottom: 0, fontStyle: 'italic', lineHeight: 1.3, textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
+                          {opt.pro_tip}
+                        </p>
+                      )}
+                      <LinkButtons venue={opt} />
+                    </div>
 
-        {/* ── INVITE THE SQUAD ── */}
-        <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '2px solid rgba(0,0,0,0.15)' }}>
-          <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.35)', marginBottom: '10px', textAlign: 'center' }}>INVITE THE SQUAD</p>
-          <button
-            onClick={copyUrl}
-            style={{
-              width: '100%', border: '2px solid #0A0A0A', padding: '14px 16px',
-              backgroundColor: copied ? '#0A0A0A' : '#FFF',
-              cursor: 'pointer', textAlign: 'center', display: 'block',
-              boxShadow: '4px 4px 0 #0A0A0A',
-              transition: 'none',
-            }}
-          >
-            {copied ? (
-              <span style={{ ...DISPLAY, fontSize: '1rem', color: '#F8E98A' }}>✓ COPIED TO CLIPBOARD!</span>
-            ) : (
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'rgba(0,0,0,0.5)', wordBreak: 'break-all' }}>{shareUrl}</span>
+                    <div style={{ position: 'absolute', top: '16px', left: '16px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {isWinning && <div style={{ backgroundColor: '#0A0A0A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#F8E98A' }}>LEADING</div>}
+                      {isMyVote && <div style={{ backgroundColor: '#F8E98A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#0A0A0A' }}>✓ YOUR PICK</div>}
+                    </div>
+
+                    <button onClick={() => !isDisabled && vote(opt.name)} disabled={isDisabled} style={{
+                      position: 'absolute', bottom: '20px', right: '16px', width: '52px', height: '52px',
+                      backgroundColor: isMyVote ? '#0A0A0A' : 'rgba(255,255,255,0.92)',
+                      border: '2px solid #0A0A0A', cursor: isDisabled ? 'default' : 'pointer',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px',
+                    }}>
+                      <span style={{ ...META, fontSize: '0.45rem', color: isMyVote ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }}>{isMyVote ? 'VOTED' : 'VOTES'}</span>
+                      <span style={{ ...DISPLAY, fontSize: '1.4rem', color: isMyVote ? '#F8E98A' : '#0A0A0A', lineHeight: 1 }}>{optVotes}</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {isHost && (
+              <div style={{ textAlign: 'center', marginTop: '48px' }}>
+                <button onClick={endPoll} style={{
+                  background: 'none', border: '2px dashed rgba(0,0,0,0.25)', padding: '12px 28px',
+                  ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', cursor: 'pointer',
+                }}>
+                  ↓ END POLL & REVEAL WINNER
+                </button>
+              </div>
             )}
-          </button>
-        </div>
+
+            {/* Share stays available mid-vote for stragglers */}
+            <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '2px solid rgba(0,0,0,0.15)' }}>
+              <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.35)', marginBottom: '10px', textAlign: 'center' }}>INVITE THE SQUAD</p>
+              <button
+                onClick={copyUrl}
+                style={{
+                  width: '100%', border: '2px solid #0A0A0A', padding: '14px 16px',
+                  backgroundColor: copied ? '#0A0A0A' : '#FFF',
+                  cursor: 'pointer', textAlign: 'center', display: 'block',
+                  boxShadow: '4px 4px 0 #0A0A0A', transition: 'none',
+                }}
+              >
+                {copied ? (
+                  <span style={{ ...DISPLAY, fontSize: '1rem', color: '#F8E98A' }}>✓ COPIED TO CLIPBOARD!</span>
+                ) : (
+                  <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'rgba(0,0,0,0.5)', wordBreak: 'break-all' }}>{shareUrl}</span>
+                )}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
