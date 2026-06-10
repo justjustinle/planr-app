@@ -131,23 +131,16 @@ export default function VenueCard({ venue, isSelected, onToggle }) {
             </span>
           )}
         </div>
-        <p style={{
-          fontFamily: 'Barlow, system-ui, sans-serif',
-          fontSize: '0.7rem',
-          opacity: 0.7,
-          marginTop: '2px',
-          marginBottom: 0,
-        }}>
-          {venue.neighborhood}
-        </p>
         {venue.pro_tip && (
           <p style={{
             fontFamily: 'Barlow, system-ui, sans-serif',
-            fontSize: '0.65rem',
-            opacity: 0.55,
-            marginTop: '3px',
+            fontSize: '0.72rem',
+            opacity: 0.9,
+            marginTop: '4px',
             marginBottom: 0,
             fontStyle: 'italic',
+            lineHeight: 1.3,
+            textShadow: '0 1px 3px rgba(0,0,0,0.6)',
           }}>
             {venue.pro_tip}
           </p>
