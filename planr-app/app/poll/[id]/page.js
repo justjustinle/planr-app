@@ -22,11 +22,58 @@ const META = {
   textTransform: 'uppercase',
 };
 
+const ORDINAL = ['', '1ST', '2ND', '3RD', '4TH', '5TH'];
+
+// Sort venues by votes desc; tie-break alphabetically by name
+function sortedByVotes(restaurants, votes) {
+  return [...(restaurants || [])].sort((a, b) => {
+    const diff = (votes[b.name] || 0) - (votes[a.name] || 0);
+    if (diff !== 0) return diff;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function BookingAction({ action }) {
+  if (!action) return null;
+  const trimmed = action.trim();
+  const isWalkIn = trimmed.toUpperCase() === 'WALK IN ONLY';
+  const isUrl = trimmed.startsWith('http');
+  const style = { ...META, fontSize: '0.65rem', color: 'rgba(255,255,255,0.75)', marginTop: '14px', display: 'block' };
+
+  if (isWalkIn) return <span style={style}>This venue is walk in only</span>;
+  if (isUrl) return (
+    <a href={trimmed} target="_blank" rel="noopener noreferrer" style={{
+      display: 'inline-block', marginTop: '16px', backgroundColor: '#F8E98A', color: '#0A0A0A',
+      ...META, fontSize: '0.7rem', padding: '10px 24px', border: '2px solid #F8E98A',
+      textDecoration: 'none', boxShadow: '3px 3px 0 rgba(255,255,255,0.15)',
+    }}>BOOK NOW →</a>
+  );
+  // Phone number
+  const digits = trimmed.replace(/\s/g, '');
+  return <span style={style}>Please call: <a href={`tel:${digits}`} style={{ color: '#F8E98A', textDecoration: 'none' }}>{trimmed}</a></span>;
+}
+
+function LinkButtons({ venue, dark = false }) {
+  if (!venue.menu_url && !venue.google_maps) return null;
+  const btnStyle = {
+    ...META, fontSize: '0.55rem', fontWeight: 700,
+    color: '#0A0A0A', backgroundColor: dark ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.9)',
+    padding: '4px 10px', textDecoration: 'none', border: '1px solid rgba(0,0,0,0.15)',
+  };
+  return (
+    <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+      {venue.menu_url && <a href={venue.menu_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={btnStyle}>MENU</a>}
+      {venue.google_maps && <a href={venue.google_maps} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={btnStyle}>MAPS</a>}
+    </div>
+  );
+}
+
 export default function PollPage({ params }) {
   const [poll, setPoll] = useState(null);
   const [myVotes, setMyVotes] = useState([]);
   const [voting, setVoting] = useState(new Set());
   const [timeLeft, setTimeLeft] = useState(null);
+  const [copied, setCopied] = useState(false);
   const pollId = params.id;
 
   useEffect(() => {
@@ -49,26 +96,22 @@ export default function PollPage({ params }) {
     return () => { supabase.removeChannel(channel); };
   }, [pollId]);
 
-  // Countdown timer — starts from poll.created_at, runs for 10 minutes
+  // Countdown: 10 min from poll.created_at; auto-close on expiry
   useEffect(() => {
     if (!poll || poll.is_closed) { setTimeLeft(null); return; }
-
-    const DURATION_MS = 10 * 60 * 1000;
-    const endsAt = new Date(poll.created_at).getTime() + DURATION_MS;
-
+    const endsAt = new Date(poll.created_at).getTime() + 10 * 60 * 1000;
     const tick = () => {
-      const remaining = endsAt - Date.now();
-      if (remaining <= 0) {
+      const rem = endsAt - Date.now();
+      if (rem <= 0) {
         setTimeLeft(0);
         supabase.from('polls').update({ is_closed: true }).eq('id', pollId);
       } else {
-        setTimeLeft(remaining);
+        setTimeLeft(rem);
       }
     };
-
     tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, [poll?.created_at, poll?.is_closed, pollId]);
 
   const vote = async (optionName) => {
@@ -77,21 +120,13 @@ export default function PollPage({ params }) {
     if (!alreadyVoted && myVotes.length >= 3) return;
 
     setVoting(prev => new Set(prev).add(optionName));
-
-    // Fetch latest votes from DB to avoid stale-state race conditions
     const { data: fresh } = await supabase.from('polls').select('votes').eq('id', pollId).single();
     const currentVotes = fresh?.votes || {};
-
-    const updatedMyVotes = alreadyVoted
-      ? myVotes.filter(n => n !== optionName)
-      : [...myVotes, optionName];
+    const updatedMyVotes = alreadyVoted ? myVotes.filter(n => n !== optionName) : [...myVotes, optionName];
     const updatedVotes = {
       ...currentVotes,
-      [optionName]: alreadyVoted
-        ? Math.max((currentVotes[optionName] || 1) - 1, 0)
-        : (currentVotes[optionName] || 0) + 1,
+      [optionName]: alreadyVoted ? Math.max((currentVotes[optionName] || 1) - 1, 0) : (currentVotes[optionName] || 0) + 1,
     };
-
     await supabase.from('polls').update({ votes: updatedVotes }).eq('id', pollId);
     localStorage.setItem(`index_votes_${pollId}`, JSON.stringify(updatedMyVotes));
     setMyVotes(updatedMyVotes);
@@ -102,31 +137,41 @@ export default function PollPage({ params }) {
     await supabase.from('polls').update({ is_closed: !poll?.is_closed }).eq('id', pollId);
   };
 
+  const copyUrl = () => {
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   if (!poll) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F8E98A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ ...DISPLAY, fontSize: '3rem', color: '#0A0A0A' }}>LOADING…</p>
     </div>
   );
 
-  const voteEntries = Object.entries(poll.votes || {});
+  const votes = poll.votes || {};
+  const ranked = sortedByVotes(poll.restaurants, votes);
+  const winner = ranked[0];
+  const runnerUps = ranked.slice(1, 4);
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+  // Live voting: max votes + leading venue
+  const voteEntries = Object.entries(votes);
   const maxVotes = voteEntries.length > 0 ? Math.max(...voteEntries.map(e => e[1])) : 0;
-  const leaderName = maxVotes > 0 ? voteEntries.find(e => e[1] === maxVotes)?.[0] : null;
-  const winner = poll.restaurants?.find(r => r.name === leaderName);
 
   return (
     <div style={{ backgroundColor: '#F8E98A', minHeight: '100vh', paddingBottom: '120px' }}>
 
-      {/* Header */}
+      {/* ── HEADER ── */}
       <header style={{ borderBottom: '2px solid #0A0A0A', padding: '32px 20px 20px' }}>
         <div style={{ maxWidth: '500px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
             <h1 style={{ ...DISPLAY, fontSize: '5rem', color: '#0A0A0A', margin: 0 }}>INDEX.</h1>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', marginBottom: '8px' }}>
               <div style={{
-                border: '2px solid #0A0A0A',
-                padding: '4px 12px',
-                ...META,
-                fontSize: '0.6rem',
+                border: '2px solid #0A0A0A', padding: '4px 12px', ...META, fontSize: '0.6rem',
                 backgroundColor: poll.is_closed ? '#0A0A0A' : 'transparent',
                 color: poll.is_closed ? '#F8E98A' : '#0A0A0A',
               }}>
@@ -134,11 +179,8 @@ export default function PollPage({ params }) {
               </div>
               {!poll.is_closed && timeLeft !== null && (
                 <div style={{
-                  border: '2px solid #0A0A0A',
-                  padding: '4px 12px',
-                  ...META,
-                  fontSize: '0.6rem',
-                  color: timeLeft < 60000 ? '#FF3B30' : '#0A0A0A',
+                  border: `2px solid ${timeLeft < 60000 ? '#FF3B30' : '#0A0A0A'}`,
+                  padding: '4px 12px', ...META, fontSize: '0.6rem',
                   backgroundColor: timeLeft < 60000 ? '#FF3B30' : 'transparent',
                   color: timeLeft < 60000 ? '#FFF' : '#0A0A0A',
                 }}>
@@ -157,194 +199,179 @@ export default function PollPage({ params }) {
 
       <div style={{ maxWidth: '500px', margin: '0 auto', padding: '0 20px' }}>
 
-        {/* Winner Banner */}
+        {/* ══════════════════════════════════════
+            POST-VOTE RESULTS VIEW
+        ══════════════════════════════════════ */}
         {poll.is_closed && winner && (
-          <div style={{ margin: '32px 0', border: '2px solid #0A0A0A', backgroundColor: '#0A0A0A', padding: '36px 24px', boxShadow: '6px 6px 0 #0A0A0A' }}>
-            <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(255,255,255,0.45)', margin: '0 0 8px' }}>THE VERDICT</p>
-            <p style={{ ...DISPLAY, fontSize: '3.5rem', color: '#F8E98A', margin: 0 }}>{winner.name}</p>
-            {winner.booking_action && (() => {
-              const action = winner.booking_action.trim();
-              const isWalkIn = action.toUpperCase() === 'WALK IN ONLY';
-              const isPhone = !isWalkIn && !action.startsWith('http');
-              const actionStyle = { ...META, fontSize: '0.65rem', marginTop: '16px', color: 'rgba(255,255,255,0.7)' };
-              if (isWalkIn) return <p style={actionStyle}>This venue is walk in only</p>;
-              if (isPhone) return <p style={actionStyle}>Please call: {action}</p>;
-              return (
-                <a
-                  href={action}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-block',
-                    marginTop: '20px',
-                    backgroundColor: '#F8E98A',
-                    color: '#0A0A0A',
-                    ...META,
-                    fontSize: '0.7rem',
-                    padding: '10px 24px',
-                    border: '2px solid #F8E98A',
-                    textDecoration: 'none',
-                    boxShadow: '3px 3px 0 rgba(255,255,255,0.2)',
-                  }}
-                >
-                  BOOK NOW →
-                </a>
-              );
-            })()}
-            {(winner.menu_url || winner.google_maps) && (
-              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                {winner.menu_url && (
-                  <a href={winner.menu_url} target="_blank" rel="noopener noreferrer"
-                    style={{ ...META, fontSize: '0.6rem', color: '#0A0A0A', backgroundColor: 'rgba(255,255,255,0.9)', padding: '6px 14px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.3)' }}>
-                    Menu
-                  </a>
+          <>
+            {/* THE VERDICT */}
+            <div style={{ margin: '32px 0 24px', backgroundColor: '#0A0A0A', border: '2px solid #0A0A0A', boxShadow: '6px 6px 0 rgba(0,0,0,0.35)', overflow: 'hidden' }}>
+              {winner.hero_image && (
+                <div style={{ position: 'relative', height: '220px' }}>
+                  <img src={winner.hero_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)' }} />
+                  <div style={{ position: 'absolute', top: '16px', left: '16px', backgroundColor: '#F8E98A', border: '2px solid #0A0A0A', padding: '4px 12px', ...META, fontSize: '0.55rem', color: '#0A0A0A' }}>
+                    THE VERDICT
+                  </div>
+                </div>
+              )}
+              <div style={{ padding: '24px' }}>
+                {!winner.hero_image && (
+                  <p style={{ ...META, fontSize: '0.55rem', color: 'rgba(255,255,255,0.45)', margin: '0 0 10px' }}>THE VERDICT</p>
                 )}
-                {winner.google_maps && (
-                  <a href={winner.google_maps} target="_blank" rel="noopener noreferrer"
-                    style={{ ...META, fontSize: '0.6rem', color: '#0A0A0A', backgroundColor: 'rgba(255,255,255,0.9)', padding: '6px 14px', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.3)' }}>
-                    Maps
-                  </a>
+                <p style={{ ...DISPLAY, fontSize: '3rem', color: '#F8E98A', margin: 0, lineHeight: 0.88 }}>{winner.name}</p>
+                {winner.price_range && (
+                  <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.75rem', color: 'rgba(255,255,255,0.55)', marginTop: '6px' }}>{winner.price_range}</p>
                 )}
+                {winner.pro_tip && (
+                  <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', marginTop: '8px', lineHeight: 1.4 }}>{winner.pro_tip}</p>
+                )}
+                <BookingAction action={winner.booking_action} />
+                <LinkButtons venue={winner} />
               </div>
+            </div>
+
+            {/* RUNNER-UP LEADERBOARD */}
+            {runnerUps.length > 0 && (
+              <>
+                <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', margin: '0 0 14px' }}>RUNNERS UP</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '40px' }}>
+                  {runnerUps.map((opt, i) => {
+                    const rank = i + 2;
+                    const optVotes = votes[opt.name] || 0;
+                    return (
+                      <div key={opt.name} style={{ position: 'relative', height: '200px', overflow: 'hidden', border: '2px solid #0A0A0A', backgroundColor: '#1A1A1A' }}>
+                        {opt.hero_image ? (
+                          <>
+                            <img src={opt.hero_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 50%)' }} />
+                          </>
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <p style={{ ...DISPLAY, fontSize: '1.6rem', color: '#FFF', textAlign: 'center', padding: '0 16px' }}>{opt.name}</p>
+                          </div>
+                        )}
+                        {/* Venue info */}
+                        <div style={{ position: 'absolute', bottom: '14px', left: '14px', right: '110px', color: '#FFF' }}>
+                          <p style={{ ...DISPLAY, fontSize: '1.3rem', margin: 0 }}>{opt.name}</p>
+                          {opt.price_range && <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.65rem', opacity: 0.7, margin: '2px 0 0' }}>{opt.price_range}</p>}
+                        </div>
+                        {/* Rank + vote badges — bottom right */}
+                        <div style={{ position: 'absolute', bottom: '14px', right: '14px', display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'flex-end' }}>
+                          <div style={{ backgroundColor: '#FFF', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.6rem', color: '#0A0A0A' }}>
+                            {ORDINAL[rank]}
+                          </div>
+                          <div style={{ backgroundColor: '#0A0A0A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.6rem', color: '#F8E98A' }}>
+                            VOTED {optVotes}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
-          </div>
+          </>
         )}
 
-        {/* Venue Cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: poll.is_closed && winner ? '0' : '32px' }}>
-          {poll.restaurants?.map((opt) => {
-            const votes = poll.votes?.[opt.name] || 0;
-            const isWinning = votes > 0 && votes === maxVotes;
-            const isMyVote = myVotes.includes(opt.name);
-            const isMaxed = myVotes.length >= 3 && !isMyVote;
-            const isDisabled = poll.is_closed || isMaxed || voting.has(opt.name);
+        {/* ══════════════════════════════════════
+            LIVE VOTING SCOREBOARD
+        ══════════════════════════════════════ */}
+        {!poll.is_closed && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '32px' }}>
+            {(poll.restaurants || []).map((opt) => {
+              const optVotes = votes[opt.name] || 0;
+              const isWinning = optVotes > 0 && optVotes === maxVotes;
+              const isMyVote = myVotes.includes(opt.name);
+              const isMaxed = myVotes.length >= 3 && !isMyVote;
+              const isDisabled = isMaxed || voting.has(opt.name);
 
-            return (
-              <div
-                key={opt.name}
-                style={{
-                  position: 'relative',
-                  overflow: 'hidden',
+              return (
+                <div key={opt.name} style={{
+                  position: 'relative', overflow: 'hidden', backgroundColor: '#1A1A1A',
                   border: isMyVote ? '5px solid #0A0A0A' : '2px solid #0A0A0A',
                   boxShadow: isMyVote ? 'none' : '5px 5px 0 #0A0A0A',
                   transform: isMyVote ? 'translate(5px,5px)' : 'none',
                   opacity: isMaxed ? 0.5 : 1,
-                  backgroundColor: '#1A1A1A',
-                }}
-              >
-                {/* Image */}
-                <div style={{ height: '280px', position: 'relative' }}>
-                  {opt.hero_image ? (
-                    <>
-                      <img src={opt.hero_image} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="" />
-                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 55%)' }} />
-                    </>
-                  ) : (
-                    <div style={{ height: '100%', backgroundColor: '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <p style={{ ...DISPLAY, fontSize: '1.8rem', color: '#FFF', textAlign: 'center', padding: '0 20px' }}>{opt.name}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div style={{ position: 'absolute', bottom: '20px', left: '20px', right: '80px', color: '#FFF' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <h3 style={{ ...DISPLAY, fontSize: '1.6rem', margin: 0 }}>{opt.name}</h3>
-                    {opt.price_range && (
-                      <span style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.7rem', opacity: 0.75 }}>{opt.price_range}</span>
+                }}>
+                  <div style={{ height: '280px', position: 'relative' }}>
+                    {opt.hero_image ? (
+                      <>
+                        <img src={opt.hero_image} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} alt="" />
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 55%)' }} />
+                      </>
+                    ) : (
+                      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <p style={{ ...DISPLAY, fontSize: '1.8rem', color: '#FFF', textAlign: 'center', padding: '0 20px' }}>{opt.name}</p>
+                      </div>
                     )}
                   </div>
-                  {opt.pro_tip && (
-                    <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.72rem', opacity: 0.9, marginTop: '4px', marginBottom: 0, fontStyle: 'italic', lineHeight: 1.3, textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
-                      {opt.pro_tip}
-                    </p>
-                  )}
-                  {(opt.menu_url || opt.google_maps) && (
-                    <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-                      {opt.menu_url && (
-                        <a href={opt.menu_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                          style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0A0A0A', backgroundColor: 'rgba(255,255,255,0.9)', padding: '3px 8px', textDecoration: 'none', border: '1px solid rgba(0,0,0,0.15)' }}>
-                          Menu
-                        </a>
-                      )}
-                      {opt.google_maps && (
-                        <a href={opt.google_maps} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                          style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0A0A0A', backgroundColor: 'rgba(255,255,255,0.9)', padding: '3px 8px', textDecoration: 'none', border: '1px solid rgba(0,0,0,0.15)' }}>
-                          Maps
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
 
-                {/* Status badges — stacked so they never overlap */}
-                <div style={{ position: 'absolute', top: '16px', left: '16px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  {isWinning && !poll.is_closed && (
-                    <div style={{ backgroundColor: '#0A0A0A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#F8E98A' }}>
-                      LEADING
+                  {/* Info overlay */}
+                  <div style={{ position: 'absolute', bottom: '20px', left: '20px', right: '80px', color: '#FFF' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                      <h3 style={{ ...DISPLAY, fontSize: '1.6rem', margin: 0 }}>{opt.name}</h3>
+                      {opt.price_range && <span style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.7rem', opacity: 0.75 }}>{opt.price_range}</span>}
                     </div>
-                  )}
-                  {isMyVote && !poll.is_closed && (
-                    <div style={{ backgroundColor: '#F8E98A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#0A0A0A' }}>
-                      ✓ YOUR PICK
-                    </div>
-                  )}
-                </div>
+                    {opt.pro_tip && (
+                      <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.72rem', opacity: 0.9, marginTop: '4px', marginBottom: 0, fontStyle: 'italic', lineHeight: 1.3, textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
+                        {opt.pro_tip}
+                      </p>
+                    )}
+                    <LinkButtons venue={opt} />
+                  </div>
 
-                {/* Vote button */}
-                <button
-                  onClick={() => !isDisabled && vote(opt.name)}
-                  disabled={isDisabled}
-                  style={{
-                    position: 'absolute',
-                    bottom: '20px',
-                    right: '16px',
-                    width: '52px',
-                    height: '52px',
+                  {/* Status badges */}
+                  <div style={{ position: 'absolute', top: '16px', left: '16px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {isWinning && <div style={{ backgroundColor: '#0A0A0A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#F8E98A' }}>LEADING</div>}
+                    {isMyVote && <div style={{ backgroundColor: '#F8E98A', border: '2px solid #0A0A0A', padding: '3px 10px', ...META, fontSize: '0.55rem', color: '#0A0A0A' }}>✓ YOUR PICK</div>}
+                  </div>
+
+                  {/* Vote button */}
+                  <button onClick={() => !isDisabled && vote(opt.name)} disabled={isDisabled} style={{
+                    position: 'absolute', bottom: '20px', right: '16px', width: '52px', height: '52px',
                     backgroundColor: isMyVote ? '#0A0A0A' : 'rgba(255,255,255,0.92)',
-                    border: '2px solid #0A0A0A',
-                    cursor: isDisabled ? 'default' : 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '1px',
-                  }}
-                >
-                  <span style={{ ...META, fontSize: '0.45rem', color: isMyVote ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }}>
-                    {isMyVote ? 'VOTED' : 'VOTES'}
-                  </span>
-                  <span style={{ ...DISPLAY, fontSize: '1.4rem', color: isMyVote ? '#F8E98A' : '#0A0A0A', lineHeight: 1 }}>{votes}</span>
-                </button>
-              </div>
-            );
-          })}
-        </div>
+                    border: '2px solid #0A0A0A', cursor: isDisabled ? 'default' : 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px',
+                  }}>
+                    <span style={{ ...META, fontSize: '0.45rem', color: isMyVote ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)' }}>{isMyVote ? 'VOTED' : 'VOTES'}</span>
+                    <span style={{ ...DISPLAY, fontSize: '1.4rem', color: isMyVote ? '#F8E98A' : '#0A0A0A', lineHeight: 1 }}>{optVotes}</span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-        {/* Admin Toggle */}
+        {/* ── ADMIN TOGGLE ── */}
         <div style={{ textAlign: 'center', marginTop: '48px' }}>
-          <button
-            onClick={toggleClose}
-            style={{
-              background: 'none',
-              border: '2px dashed rgba(0,0,0,0.25)',
-              padding: '12px 28px',
-              ...META,
-              fontSize: '0.6rem',
-              color: 'rgba(0,0,0,0.4)',
-              cursor: 'pointer',
-            }}
-          >
+          <button onClick={toggleClose} style={{
+            background: 'none', border: '2px dashed rgba(0,0,0,0.25)', padding: '12px 28px',
+            ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', cursor: 'pointer',
+          }}>
             {poll.is_closed ? '↑ RE-OPEN POLL' : '↓ END POLL & REVEAL WINNER'}
           </button>
         </div>
 
-        {/* Share URL */}
-        <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '2px solid rgba(0,0,0,0.1)', textAlign: 'center' }}>
-          <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.35)', marginBottom: '10px' }}>INVITE THE SQUAD</p>
-          <div style={{ border: '2px solid rgba(0,0,0,0.15)', padding: '10px 14px', fontSize: '10px', color: 'rgba(0,0,0,0.4)', wordBreak: 'break-all', fontFamily: 'monospace' }}>
-            {typeof window !== 'undefined' ? window.location.href : ''}
-          </div>
+        {/* ── INVITE THE SQUAD ── */}
+        <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '2px solid rgba(0,0,0,0.15)' }}>
+          <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.35)', marginBottom: '10px', textAlign: 'center' }}>INVITE THE SQUAD</p>
+          <button
+            onClick={copyUrl}
+            style={{
+              width: '100%', border: '2px solid #0A0A0A', padding: '14px 16px',
+              backgroundColor: copied ? '#0A0A0A' : '#FFF',
+              cursor: 'pointer', textAlign: 'center', display: 'block',
+              boxShadow: '4px 4px 0 #0A0A0A',
+              transition: 'none',
+            }}
+          >
+            {copied ? (
+              <span style={{ ...DISPLAY, fontSize: '1rem', color: '#F8E98A' }}>✓ COPIED TO CLIPBOARD!</span>
+            ) : (
+              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'rgba(0,0,0,0.5)', wordBreak: 'break-all' }}>{shareUrl}</span>
+            )}
+          </button>
         </div>
       </div>
     </div>
