@@ -7,6 +7,6 @@ const supabase = createClient(
 );
 
 export async function GET() {
-  const { data, error } = await supabase.from('database').select('*').limit(5);
+  const { data, error } = await supabase.from('databaseindex').select('*').limit(5);
   return NextResponse.json({ data, error });
 }

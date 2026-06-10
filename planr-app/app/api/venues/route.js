@@ -19,7 +19,7 @@ export async function GET(req) {
 
     // Primary: exact 3-filter match
     const { data: exact, error } = await supabase
-      .from('database')
+      .from('databaseindex')
       .select('*')
       .eq('neighborhood', neighborhood)
       .eq('activity_type', activity_type)
@@ -35,7 +35,7 @@ export async function GET(req) {
 
     // Fuzzy fallback: drop energy_tag, keep neighborhood + activity_type
     const { data: fallback, error: fallbackError } = await supabase
-      .from('database')
+      .from('databaseindex')
       .select('*')
       .eq('neighborhood', neighborhood)
       .eq('activity_type', activity_type);
