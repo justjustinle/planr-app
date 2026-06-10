@@ -84,12 +84,13 @@ export default function PollPage({ params }) {
   const [copied, setCopied] = useState(false);
   const [online, setOnline] = useState(1);
   const [isHost, setIsHost] = useState(false);
+  const [verdictCopied, setVerdictCopied] = useState(false);
   const pollId = params.id;
 
   useEffect(() => {
     const stored = localStorage.getItem(`index_votes_${pollId}`);
     if (stored) setMyVotes(JSON.parse(stored));
-    setIsHost(localStorage.getItem(`index_host_${pollId}`) === '1');
+    setIsHost(localStorage.getItem(`poll_creator_${pollId}`) === 'true');
 
     async function getInitialPoll() {
       const { data } = await supabase.from('polls').select('*').eq('id', pollId).single();
@@ -178,21 +179,38 @@ export default function PollPage({ params }) {
   };
 
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const inviteText = `Vote on tonight's spot — the clock is ticking, decision locks in 10 minutes! Choose here: ${shareUrl}`;
 
   const share = () => {
-    const text = `Vote on tonight's spot — you've got 10 minutes once it starts:`;
     if (navigator.share) {
-      navigator.share({ title: 'INDEX.', text, url: shareUrl }).catch(() => {});
+      navigator.share({ title: 'INDEX.', text: inviteText }).catch(() => {});
     } else {
-      copyUrl();
+      copyInvite();
     }
   };
 
-  const copyUrl = () => {
-    navigator.clipboard.writeText(shareUrl).then(() => {
+  const copyInvite = () => {
+    navigator.clipboard.writeText(inviteText).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const shareVerdict = (venueName) => {
+    const text = `Verdict is in! We are heading to ${venueName} tonight: ${shareUrl}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setVerdictCopied(true);
+      setTimeout(() => setVerdictCopied(false), 2000);
+    });
+  };
+
+  // Deadlock recovery: host hand-picks the winner after a zero-vote close
+  const pickWinner = async (venueName) => {
+    const { data: fresh } = await supabase.from('polls').select('votes').eq('id', pollId).single();
+    const freshVotes = fresh?.votes || {};
+    await supabase.from('polls').update({
+      votes: { ...freshVotes, [venueName]: 1 },
+    }).eq('id', pollId);
   };
 
   if (phase === 'loading') return (
@@ -207,6 +225,7 @@ export default function PollPage({ params }) {
   const runnerUps = ranked.slice(1, 4);
   const voteValues = Object.values(votes);
   const maxVotes = voteValues.length > 0 ? Math.max(...voteValues) : 0;
+  const totalVotes = voteValues.reduce((sum, v) => sum + v, 0);
 
   const PresenceBadge = () => (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '2px solid #0A0A0A', padding: '4px 12px', backgroundColor: '#FFF' }}>
@@ -283,7 +302,7 @@ export default function PollPage({ params }) {
             </button>
 
             <button
-              onClick={copyUrl}
+              onClick={copyInvite}
               style={{
                 width: '100%', marginTop: '12px', border: '2px solid #0A0A0A', padding: '12px 16px',
                 backgroundColor: copied ? '#0A0A0A' : '#FFF', cursor: 'pointer', textAlign: 'center',
@@ -291,7 +310,7 @@ export default function PollPage({ params }) {
               }}
             >
               {copied ? (
-                <span style={{ ...DISPLAY, fontSize: '0.9rem', color: '#F8E98A' }}>✓ COPIED TO CLIPBOARD!</span>
+                <span style={{ ...DISPLAY, fontSize: '0.9rem', color: '#F8E98A' }}>✓ COPIED TO WHATSAPP!</span>
               ) : (
                 <span style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.5)', wordBreak: 'break-all' }}>{shareUrl}</span>
               )}
@@ -330,9 +349,59 @@ export default function PollPage({ params }) {
         )}
 
         {/* ══════════════════════════════════════
+            DEADLOCK — poll closed with zero votes
+        ══════════════════════════════════════ */}
+        {phase === 'results' && totalVotes === 0 && (
+          <div style={{ marginTop: '32px' }}>
+            <div style={{ border: '2px solid #0A0A0A', backgroundColor: '#0A0A0A', padding: '40px 24px', boxShadow: '6px 6px 0 rgba(0,0,0,0.35)', textAlign: 'center' }}>
+              <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(255,255,255,0.45)', margin: '0 0 12px' }}>DEADLOCK</p>
+              <p style={{ ...DISPLAY, fontSize: '3rem', color: '#FF3B30', margin: 0 }}>NO VOTES<br />CAST IN TIME.</p>
+            </div>
+
+            {isHost ? (
+              <>
+                <button
+                  onClick={reopenPoll}
+                  style={{
+                    width: '100%', marginTop: '24px', backgroundColor: '#FFF', color: '#0A0A0A',
+                    border: '2px solid #0A0A0A', padding: '18px', cursor: 'pointer',
+                    boxShadow: '5px 5px 0 #0A0A0A', transition: 'none',
+                  }}
+                >
+                  <span style={{ ...DISPLAY, fontSize: '1.4rem' }}>EXTEND THE VOTE</span>
+                  <span style={{ ...META, fontSize: '0.55rem', display: 'block', marginTop: '6px', color: 'rgba(0,0,0,0.45)' }}>10 MORE MINUTES ON THE CLOCK</span>
+                </button>
+
+                <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', margin: '32px 0 12px' }}>OR CALL IT YOURSELF</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(poll.restaurants || []).map(opt => (
+                    <button
+                      key={opt.name}
+                      onClick={() => pickWinner(opt.name)}
+                      style={{
+                        border: '2px solid #0A0A0A', backgroundColor: '#FFF', padding: '14px 16px',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                        cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'none',
+                      }}
+                    >
+                      <span style={{ ...DISPLAY, fontSize: '1.2rem', color: '#0A0A0A' }}>{opt.name}</span>
+                      <span style={{ ...META, fontSize: '0.55rem', color: 'rgba(0,0,0,0.45)' }}>PICK →</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="animate-pulse" style={{ ...META, fontSize: '0.65rem', color: 'rgba(0,0,0,0.45)', textAlign: 'center', marginTop: '32px' }}>
+                WAITING FOR THE HOST TO BREAK THE DEADLOCK…
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════
             POST-VOTE RESULTS VIEW
         ══════════════════════════════════════ */}
-        {phase === 'results' && winner && (
+        {phase === 'results' && totalVotes > 0 && winner && (
           <>
             {/* THE VERDICT */}
             <div style={{ margin: '32px 0 24px', backgroundColor: '#0A0A0A', border: '2px solid #0A0A0A', boxShadow: '6px 6px 0 rgba(0,0,0,0.35)', overflow: 'hidden' }}>
@@ -357,7 +426,21 @@ export default function PollPage({ params }) {
                   <p style={{ fontFamily: 'Barlow, system-ui, sans-serif', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', marginTop: '8px', lineHeight: 1.4 }}>{winner.pro_tip}</p>
                 )}
                 <BookingAction action={winner.booking_action} />
-                <LinkButtons venue={winner} />
+                <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <LinkButtons venue={winner} />
+                  <button
+                    onClick={() => shareVerdict(winner.name)}
+                    style={{
+                      ...META, fontSize: '0.55rem', fontWeight: 700, marginTop: '10px',
+                      color: verdictCopied ? '#0A0A0A' : '#F8E98A',
+                      backgroundColor: verdictCopied ? '#F8E98A' : 'transparent',
+                      padding: '4px 10px', border: '1px solid #F8E98A',
+                      cursor: 'pointer', transition: 'none',
+                    }}
+                  >
+                    {verdictCopied ? '✓ COPIED!' : 'SHARE THE VERDICT'}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -497,7 +580,7 @@ export default function PollPage({ params }) {
             <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '2px solid rgba(0,0,0,0.15)' }}>
               <p style={{ ...META, fontSize: '0.6rem', color: 'rgba(0,0,0,0.35)', marginBottom: '10px', textAlign: 'center' }}>INVITE THE SQUAD</p>
               <button
-                onClick={copyUrl}
+                onClick={copyInvite}
                 style={{
                   width: '100%', border: '2px solid #0A0A0A', padding: '14px 16px',
                   backgroundColor: copied ? '#0A0A0A' : '#FFF',
@@ -506,7 +589,7 @@ export default function PollPage({ params }) {
                 }}
               >
                 {copied ? (
-                  <span style={{ ...DISPLAY, fontSize: '1rem', color: '#F8E98A' }}>✓ COPIED TO CLIPBOARD!</span>
+                  <span style={{ ...DISPLAY, fontSize: '1rem', color: '#F8E98A' }}>✓ COPIED TO WHATSAPP!</span>
                 ) : (
                   <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'rgba(0,0,0,0.5)', wordBreak: 'break-all' }}>{shareUrl}</span>
                 )}

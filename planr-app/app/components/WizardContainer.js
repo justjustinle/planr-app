@@ -112,7 +112,7 @@ export default function WizardContainer() {
       restaurants: selected, votes: {}, is_closed: false,
     }]).select();
     if (!error) {
-      localStorage.setItem(`index_host_${data[0].id}`, '1');
+      localStorage.setItem(`poll_creator_${data[0].id}`, 'true');
       router.push(`/poll/${data[0].id}`);
     } else setPollCreating(false);
   };
