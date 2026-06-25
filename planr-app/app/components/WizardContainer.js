@@ -233,9 +233,17 @@ export default function WizardContainer() {
             <h2 style={{ ...DISPLAY, fontSize: '5rem', color: fg }} className="mb-4">
               WHERE IN<br />LONDON?
             </h2>
-            <p className="text-xs mb-10" style={{ ...META, color: fg, opacity: 0.5 }}>
-              Select one or more neighbourhoods
-            </p>
+            <div className="flex items-baseline justify-between mb-10">
+              <p className="text-xs" style={{ ...META, color: fg, opacity: 0.5 }}>
+                Select one or more neighbourhoods
+              </p>
+              <button
+                onClick={() => setNeighborhoods(neighborhoods.length === WHERE_OPTIONS.length ? [] : WHERE_OPTIONS.map(o => o.value))}
+                style={{ ...META, fontSize: '0.6rem', color: fg, opacity: 0.6, background: 'none', border: 'none', cursor: 'pointer', padding: 0, transition: 'none', whiteSpace: 'nowrap', marginLeft: '12px' }}
+              >
+                {neighborhoods.length === WHERE_OPTIONS.length ? 'DESELECT ALL' : 'SELECT ALL'}
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               {WHERE_OPTIONS.map((opt) => (
                 <div key={opt.value}>
@@ -258,9 +266,17 @@ export default function WizardContainer() {
             <h2 style={{ ...DISPLAY, fontSize: '5rem', color: fg }} className="mb-4">
               WHAT'S<br />THE PLAN?
             </h2>
-            <p className="text-xs mb-10" style={{ ...META, color: fg, opacity: 0.5 }}>
-              Choose one or more activities
-            </p>
+            <div className="flex items-baseline justify-between mb-10">
+              <p className="text-xs" style={{ ...META, color: fg, opacity: 0.5 }}>
+                Choose one or more activities
+              </p>
+              <button
+                onClick={() => setActivityTypes(activityTypes.length === WHAT_OPTIONS.length ? [] : WHAT_OPTIONS.map(o => o.value))}
+                style={{ ...META, fontSize: '0.6rem', color: fg, opacity: 0.6, background: 'none', border: 'none', cursor: 'pointer', padding: 0, transition: 'none', whiteSpace: 'nowrap', marginLeft: '12px' }}
+              >
+                {activityTypes.length === WHAT_OPTIONS.length ? 'DESELECT ALL' : 'SELECT ALL'}
+              </button>
+            </div>
             <div className="flex flex-col gap-3">
               {WHAT_OPTIONS.map(opt => (
                 <SelectionCard
@@ -284,9 +300,17 @@ export default function WizardContainer() {
             <h2 style={{ ...DISPLAY, fontSize: '5rem', color: fg }} className="mb-4">
               WHAT'S THE<br />ENERGY?
             </h2>
-            <p className="text-xs mb-10" style={{ ...META, color: fg, opacity: 0.5 }}>
-              Pick one or more vibes
-            </p>
+            <div className="flex items-baseline justify-between mb-10">
+              <p className="text-xs" style={{ ...META, color: fg, opacity: 0.5 }}>
+                Pick one or more vibes
+              </p>
+              <button
+                onClick={() => setEnergyTags(energyTags.length === WHO_OPTIONS.length ? [] : WHO_OPTIONS.map(o => o.value))}
+                style={{ ...META, fontSize: '0.6rem', color: fg, opacity: 0.6, background: 'none', border: 'none', cursor: 'pointer', padding: 0, transition: 'none', whiteSpace: 'nowrap', marginLeft: '12px' }}
+              >
+                {energyTags.length === WHO_OPTIONS.length ? 'DESELECT ALL' : 'SELECT ALL'}
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               {WHO_OPTIONS.map((opt) => (
                 <div key={opt.value}>
