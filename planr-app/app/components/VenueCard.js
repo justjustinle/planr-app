@@ -166,7 +166,7 @@ export default function VenueCard({ venue, isSelected, onToggle }) {
                   border: '1px solid rgba(0,0,0,0.15)',
                 }}
               >
-                {['drink', 'play'].includes(venue.activity_type) ? 'Website' : 'Menu'}
+                {['drink', 'play'].includes(venue.activity_type?.toLowerCase()) ? 'Website' : 'Menu'}
               </a>
             )}
             {venue.google_maps && (
