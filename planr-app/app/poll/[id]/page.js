@@ -71,7 +71,7 @@ function LinkButtons({ venue }) {
   };
   return (
     <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
-      {venue.menu_url && <a href={venue.menu_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={btnStyle}>{['drink','play'].includes(venue.activity_type) ? 'WEBSITE' : 'MENU'}</a>}
+      {venue.menu_url && <a href={venue.menu_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={btnStyle}>{venue.cuisine_type ? 'MENU' : 'WEBSITE'}</a>}
       {venue.google_maps && <a href={venue.google_maps} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={btnStyle}>MAPS</a>}
     </div>
   );
